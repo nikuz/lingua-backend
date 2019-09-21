@@ -1,0 +1,8 @@
+node_modules/
+.idea/
+.env
+public/
+database/
+images/
+pronunciations/
+package-lock.json
