@@ -20,13 +20,13 @@ exports = module.exports = (app) => {
 
     // main page
     app.get('/', (req, res) => {
-        res.sendFile(path.resolve(process.cwd() + '/public/index.html'));
+        res.sendFile(path.resolve(__dirname + '/../public/index.html'));
     });
 
     // public
-    app.use(express.static(process.cwd() + '/public'));
-    app.use('/images', express.static(process.cwd() + '/images'));
-    app.use('/pronunciations', express.static(process.cwd() + '/pronunciations'));
+    app.use(express.static(path.resolve(__dirname + '/../public')));
+    app.use('/images', express.static(path.resolve(__dirname + '/images')));
+    app.use('/pronunciations', express.static(path.resolve(__dirname + '/pronunciations')));
 
     // translation
     app.get('/translate', controllers.translate.get);
