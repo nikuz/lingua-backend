@@ -1,8 +1,10 @@
 //
 const EventEmitter = require('events').EventEmitter;
 const to = require('await-to-js').to;
+const commonUtils = require('../utils/common');
 const validator = require('../utils/validator');
-const translator = require('../services/translate');
+const translatorService = require('../services/translate');
+const translator = require('../models/translate');
 
 // ----------------
 // public functions
@@ -10,15 +12,7 @@ const translator = require('../services/translate');
 
 function get(req, res) {
     const workflow = new EventEmitter();
-    const cb = (error, response) => {
-        if (error) {
-            res.send({
-                error,
-            });
-        } else {
-            res.send(response);
-        }
-    };
+    const cb = commonUtils.getResponseCallback(res);
     const request = req.query.q;
 
     workflow.on('validateParams', () => {
@@ -34,18 +28,66 @@ function get(req, res) {
             if (err) {
                 cb(err);
             } else {
+                workflow.emit('checkCache');
+            }
+        });
+    });
+
+    workflow.on('checkCache', async () => {
+        translator.get({
+            word: request,
+        }, (err, response) => {
+            if (err) {
+                cb(err);
+            } else if (response) {
+                cb(null, response)
+            } else {
                 workflow.emit('translate');
             }
         });
     });
 
     workflow.on('translate', async () => {
-        const [err, translate] = await to(translator.get(request));
+        const [err, translate] = await to(translatorService.get(request));
         if (err) {
             cb(err);
         } else {
             cb(null, translate);
         }
+    });
+
+    workflow.emit('validateParams');
+}
+
+function set(req, res) {
+    const workflow = new EventEmitter();
+    const body = req.body || {};
+    const cb = commonUtils.getResponseCallback(res);
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            key: ['string', body.key, (internalCallback) => {
+                if (body.key === process.env.API_KEY) {
+                    internalCallback();
+                } else {
+                    internalCallback('API key is wrong');
+                }
+            }],
+            word: ['string', body.word],
+            translation: ['string', body.translation],
+            raw: ['string', body.raw],
+            pronunciationURL: ['string', body.pronunciationURL],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('save');
+            }
+        });
+    });
+
+    workflow.on('save', async () => {
+
     });
 
     workflow.emit('validateParams');
@@ -57,4 +99,5 @@ function get(req, res) {
 
 exports = module.exports = {
     get,
+    set,
 };

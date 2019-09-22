@@ -1,51 +1,45 @@
 //
+const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 let db;
 
 if (!db) {
-    db = new sqlite3.Database('./database/dictionary');
+    db = new sqlite3.Database(path.resolve(__dirname, '../../database/dictionary.SQLITE3'));
 }
 
 function initiate() {
     db.serialize(() => {
-        db.run(`CREATE TABLE IF NOT EXISTS 'dictionary' (
+        db.run(`CREATE TABLE IF NOT EXISTS dictionary (
             'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             'word' VARCHAR NOT NULL,
             'pronunciation' VARCHAR NOT NULL,
             'translation' VARCHAR,
             'translation_raw' TEXT NOT NULL,
-            'image' VARCHAR
+            'image' VARCHAR,
+            'created_at' TEXT DEFAULT CURRENT_TIMESTAMP
         )`);
     });
-
-    db.close();
 }
 
-function set(word, pronunciation, translation_raw, image) {
+function run(query, params, callback) {
     db.serialize(() => {
-        db.run(`
-            INSERT INTO 'dictionary' ('word', 'pronunciation', 'translation_raw', 'image')
-            VALUES('${word}', '${pronunciation}', '${translation_raw}', '${image}');
-        `);
+        db.run(query, params, callback);
     });
-
-    db.close();
 }
 
-function get(pattern) {
+function get(query, params, callback) {
     db.serialize(() => {
-        db.run(`
-            SELECT *
-            FROM 'dictionary'
-            WHERE 'word' LIKE '%${pattern}%';
-        `);
+        db.get(query, params, callback);
     });
+}
 
+function close() {
     db.close();
 }
 
 exports = module.exports = {
     initiate,
-    set,
     get,
+    run,
+    close,
 };

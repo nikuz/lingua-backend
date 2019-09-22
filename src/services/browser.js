@@ -4,7 +4,9 @@ let browser;
 
 async function get() {
     if (!browser) {
-        browser = await puppeteer.launch();
+        browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
     }
     return browser;
 }

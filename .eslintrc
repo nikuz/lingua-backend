@@ -1,5 +1,12 @@
+extends:
+  eslint:recommended
+
 parserOptions:
   ecmaVersion: 2019
+
+env:
+  es6: true
+  node: true
 
 rules:
   indent: ["error", 4, {
@@ -16,4 +23,13 @@ rules:
     "asyncArrow": "always"
   }]
   "prefer-arrow-callback": 1
+  "no-async-promise-executor": 0
+  "require-atomic-updates": 0
+  "comma-dangle": ["error", {
+    "arrays": "always-multiline",
+    "objects": "always-multiline",
+    "imports": "always-multiline",
+    "exports": "always-multiline",
+    "functions": "never"
+  }]
 
