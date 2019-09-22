@@ -13,6 +13,10 @@ exports = module.exports = (app) => {
         type: 'application/yaml',
     }));
     app.use(bodyParser.json());
+    app.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*');
+        next();
+    });
 
     // main page
     app.get('/', (req, res) => {

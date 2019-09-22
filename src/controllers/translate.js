@@ -52,7 +52,23 @@ function get(req, res) {
         if (err) {
             cb(err);
         } else {
-            cb(null, translate);
+            let raw;
+            let err;
+            try {
+                raw = JSON.parse(translate.raw);
+            } catch (e) {
+                err = e;
+            } finally {
+                if (err) {
+                    cb(err);
+                } else {
+                    cb(null, {
+                        word: request,
+                        raw,
+                        pronunciation: translate.pronunciationURL,
+                    });
+                }
+            }
         }
     });
 

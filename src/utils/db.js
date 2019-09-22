@@ -14,7 +14,7 @@ function initiate() {
             'word' VARCHAR NOT NULL,
             'pronunciation' VARCHAR NOT NULL,
             'translation' VARCHAR,
-            'translation_raw' TEXT NOT NULL,
+            'raw' TEXT NOT NULL,
             'image' VARCHAR,
             'created_at' TEXT DEFAULT CURRENT_TIMESTAMP
         )`);
