@@ -1,10 +1,12 @@
 //
+const puppeteer = require('puppeteer');
 const to = require('await-to-js').to;
-const browserService = require('./browser');
 
 function get(query) {
     return new Promise(async (resolve, reject) => {
-        const browser = await browserService.get();
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
         const page = await browser.newPage();
         await page.setViewport({
             width: 1024,

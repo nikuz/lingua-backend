@@ -1,14 +1,16 @@
 //
 const url = require('url');
+const puppeteer = require('puppeteer');
 const to = require('await-to-js').to;
-const browserService = require('./browser');
 
 const defaultSourceLanguage = 'en';
 const defaultTargetLanguage = 'ru';
 
 function get(query, sourceLanguage, targetLanguage) {
     return new Promise(async (resolve, reject) => {
-        const browser = await browserService.get();
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
         const page = await browser.newPage();
         await page.setViewport({
             width: 600,
@@ -23,27 +25,29 @@ function get(query, sourceLanguage, targetLanguage) {
             const responseUrl = url.parse(response.url(), true);
             const requestQuery = responseUrl.query;
             if (requestQuery.q === query) {
+                console.log(response.url());
                 if (requestQuery.tk) {
                     pronunciationURL = process.env.PRONUNCIATION_URL
                         .replace('{query}', query)
                         .replace('{queryLen}', query.length)
                         .replace('{tk}', requestQuery.tk);
                 }
+                console.log(pronunciationURL);
 
                 response.text().then(async raw => {
                     rawResponse = raw;
-                    await to(page.close());
+                    await browser.close();
                 });
             }
         });
 
         page.on('error', async error => {
             requestError = error;
-            await to(page.close());
+            await browser.close();
         });
 
-        page.on('close', () => {
-            if (requestError) {
+        browser.on('disconnected', () => {
+            if (requestError && !rawResponse) {
                 reject({
                     error: requestError,
                 });
@@ -69,7 +73,7 @@ function get(query, sourceLanguage, targetLanguage) {
             if (!requestError) {
                 requestError = response.status();
             }
-            await to(page.close());
+            await browser.close();
         }
     });
 }
