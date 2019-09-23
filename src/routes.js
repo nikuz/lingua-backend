@@ -25,8 +25,8 @@ exports = module.exports = (app) => {
 
     // public
     app.use(express.static(path.resolve(__dirname + '/../public')));
-    app.use('/images', express.static(path.resolve(__dirname + '/images')));
-    app.use('/pronunciations', express.static(path.resolve(__dirname + '/pronunciations')));
+    app.use('/images', express.static(path.resolve(__dirname + '/../images')));
+    app.use('/pronunciations', express.static(path.resolve(__dirname + '/../pronunciations')));
 
     // translation
     app.get('/translate', controllers.translate.get);
