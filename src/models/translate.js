@@ -81,6 +81,72 @@ function find(options, callback) {
     workflow.emit('validateParams');
 }
 
+function savePronunciation(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const {
+        word,
+        pronunciationURL,
+    } = options;
+    const pronunciationsPath = commonUtils.getPronunciationsPath();
+    let fileId;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            word: ['string', word],
+            pronunciationURL: ['string', pronunciationURL],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getFileId');
+            }
+        });
+    });
+
+    workflow.on('getFileId', () => {
+        fileId = commonUtils.getFileId(word);
+        if (!fileId.length) {
+            cb('Can\'t create file id from word');
+        } else {
+            workflow.emit('savePronunciations');
+        }
+    });
+
+    workflow.on('savePronunciations', () => {
+        let httpGet = http.get;
+        if (pronunciationURL.indexOf('https') === 0) {
+            httpGet = https.get;
+        }
+
+        const pronunciationsFile = `${pronunciationsPath}/${fileId}.mp3`;
+        const pronunciationsFileStream = fs.createWriteStream(pronunciationsFile);
+        const request = httpGet(pronunciationURL, (response) => {
+            if (response.statusCode !== 200) {
+                cb(`Image downloading status code is ${response.statusCode}`);
+            } else {
+                response.pipe(pronunciationsFileStream);
+            }
+        });
+
+        request.on('error', (err) => {
+            cb(err.message);
+        });
+
+        pronunciationsFileStream.on('error', (err) => {
+            cb(err.message);
+        });
+
+        pronunciationsFileStream.on('finish', () => {
+            pronunciationsFileStream.close(() => {
+                cb(null, `/pronunciations/${fileId}.mp3`);
+            })
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 function set(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
@@ -92,9 +158,9 @@ function set(options, callback) {
         image,
     } = options;
     const imagesPath = commonUtils.getImagesPath();
-    const pronunciationsPath = commonUtils.getPronunciationsPath();
     let fileId;
     let imageExtension;
+    let pronunciationFilePath;
 
     workflow.on('validateParams', () => {
         validator.check({
@@ -150,35 +216,16 @@ function set(options, callback) {
     });
 
     workflow.on('savePronunciations', () => {
-        let httpGet = http.get;
-        if (pronunciationURL.indexOf('https') === 0) {
-            httpGet = https.get;
-        }
-
-        const pronunciationsFile = `${pronunciationsPath}/${fileId}.mp3`;
-        const pronunciationsFileStream = fs.createWriteStream(pronunciationsFile);
-        const request = httpGet(pronunciationURL, (response) => {
-            if (response.statusCode !== 200) {
-                cb(`Image downloading status code is ${response.statusCode}`);
+        savePronunciation({
+            word,
+            pronunciationURL,
+        }, (err, value) => {
+            if (err) {
+                cb(err);
             } else {
-                response.pipe(pronunciationsFileStream);
-            }
-        });
-
-        request.on('error', (err) => {
-            fs.unlink(pronunciationsFile);
-            cb(err.message);
-        });
-
-        pronunciationsFileStream.on('error', (err) => {
-            fs.unlink(pronunciationsFile);
-            cb(err.message);
-        });
-
-        pronunciationsFileStream.on('finish', () => {
-            pronunciationsFileStream.close(() => {
+                pronunciationFilePath = value;
                 workflow.emit('fillDatabase');
-            })
+            }
         });
     });
 
@@ -192,7 +239,7 @@ function set(options, callback) {
             {
                 $word: word,
                 $translation: translation,
-                $pronunciation: '/pronunciations/${fileId}.mp3',
+                $pronunciation: pronunciationFilePath,
                 $raw: raw,
                 $image: imageData,
             },
@@ -213,5 +260,6 @@ function set(options, callback) {
 exports = module.exports = {
     get,
     find,
+    savePronunciation,
     set,
 };

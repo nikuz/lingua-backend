@@ -18,11 +18,11 @@ function getFileId(word) {
 }
 
 function getImagesPath() {
-    return path.resolve(__dirname, '/../../images');
+    return path.resolve(__dirname, '../../images');
 }
 
 function getPronunciationsPath() {
-    return path.resolve(__dirname, '/../../pronunciations');
+    return path.resolve(__dirname, '../../pronunciations');
 }
 
 exports = module.exports = {
