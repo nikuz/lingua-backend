@@ -81,7 +81,7 @@ function find(options, callback) {
     workflow.emit('validateParams');
 }
 
-function savePronunciation(options, callback) {
+function pronunciationSave(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
     const {
@@ -119,7 +119,7 @@ function savePronunciation(options, callback) {
             httpGet = https.get;
         }
 
-        const pronunciationsFile = `${pronunciationsPath}/${fileId}.mp3`;
+        const pronunciationsFile = commonUtils.getPronunciationFilePath(pronunciationsPath, fileId);
         const pronunciationsFileStream = fs.createWriteStream(pronunciationsFile);
         const request = httpGet(pronunciationURL, (response) => {
             if (response.statusCode !== 200) {
@@ -142,6 +142,42 @@ function savePronunciation(options, callback) {
                 cb(null, `/pronunciations/${fileId}.mp3`);
             })
         });
+    });
+
+    workflow.emit('validateParams');
+}
+
+function pronunciationRemove(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const { word } = options;
+    const pronunciationsPath = commonUtils.getPronunciationsPath();
+    let fileId;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            word: ['string', word],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getFileId');
+            }
+        });
+    });
+
+    workflow.on('getFileId', () => {
+        fileId = commonUtils.getFileId(word);
+        if (!fileId.length) {
+            cb('Can\'t create file id from word');
+        } else {
+            workflow.emit('removePronunciations');
+        }
+    });
+
+    workflow.on('removePronunciations', () => {
+        const pronunciationsFile = commonUtils.getPronunciationFilePath(pronunciationsPath, fileId);
+        fs.unlink(pronunciationsFile, cb);
     });
 
     workflow.emit('validateParams');
@@ -216,7 +252,7 @@ function set(options, callback) {
     });
 
     workflow.on('savePronunciations', () => {
-        savePronunciation({
+        pronunciationSave({
             word,
             pronunciationURL,
         }, (err, value) => {
@@ -260,6 +296,7 @@ function set(options, callback) {
 exports = module.exports = {
     get,
     find,
-    savePronunciation,
+    pronunciationSave,
+    pronunciationRemove,
     set,
 };

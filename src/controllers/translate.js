@@ -13,12 +13,14 @@ const translator = require('../models/translate');
 function get(req, res) {
     const workflow = new EventEmitter();
     const cb = commonUtils.getResponseCallback(res);
-    const request = req.query.q;
+    const word = req.query.q;
+    const authorization = req.headers.authorization;
 
     workflow.on('validateParams', () => {
         validator.check({
-            q: ['string', request, (internalCallback) => {
-                if (/^[a-zA-Z -]+$/.test(request)) {
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            word: ['string', word, (internalCallback) => {
+                if (/^[a-zA-Z -]+$/.test(word)) {
                     internalCallback();
                 } else {
                     internalCallback('Request contains wrong symbols');
@@ -35,7 +37,7 @@ function get(req, res) {
 
     workflow.on('checkCache', async () => {
         translator.get({
-            word: request,
+            word,
         }, (err, response) => {
             if (err) {
                 cb(err);
@@ -48,7 +50,7 @@ function get(req, res) {
     });
 
     workflow.on('translate', async () => {
-        const [err, translate] = await to(translatorService.get(request));
+        const [err, translate] = await to(translatorService.get(word));
         if (err) {
             cb(err);
         } else {
@@ -63,7 +65,7 @@ function get(req, res) {
                     cb(err);
                 } else {
                     cb(null, {
-                        word: request,
+                        word,
                         raw,
                         pronunciation: translate.pronunciationURL,
                     });
@@ -79,16 +81,11 @@ function set(req, res) {
     const workflow = new EventEmitter();
     const body = req.body || {};
     const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
 
     workflow.on('validateParams', () => {
         validator.check({
-            key: ['string', body.key, (internalCallback) => {
-                if (body.key === process.env.API_KEY) {
-                    internalCallback();
-                } else {
-                    internalCallback('API key is wrong');
-                }
-            }],
+            authorization: commonUtils.getApiKeyValidator(authorization),
             word: ['string', body.word],
             translation: ['string', body.translation],
             raw: ['string', body.raw],
@@ -109,6 +106,38 @@ function set(req, res) {
     workflow.emit('validateParams');
 }
 
+function removePronunciation(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+    const word = req.query.q;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            word: ['string', word],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('removeFile');
+            }
+        });
+    });
+
+    workflow.on('removeFile', async () => {
+        translator.pronunciationRemove({ word }, (err) => {
+            if (err) {
+                cb(`Can't remove pronunciation file for '${word}' word`);
+            } else {
+                cb();
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 // ---------
 // interface
 // ---------
@@ -116,4 +145,5 @@ function set(req, res) {
 exports = module.exports = {
     get,
     set,
+    removePronunciation,
 };

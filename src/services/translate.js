@@ -51,7 +51,7 @@ function get(query, sourceLanguage, targetLanguage) {
                     error: requestError,
                 });
             } else {
-                translate.savePronunciation({
+                translate.pronunciationSave({
                     word: query,
                     pronunciationURL,
                 }, (err, value) => {

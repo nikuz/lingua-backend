@@ -14,7 +14,9 @@ exports = module.exports = (app) => {
     }));
     app.use(bodyParser.json());
     app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*');
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT,DELETE");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
         next();
     });
 
@@ -30,5 +32,6 @@ exports = module.exports = (app) => {
 
     // translation
     app.get('/translate', controllers.translate.get);
+    app.delete('/pronunciation', controllers.translate.removePronunciation);
     app.get('/image', controllers.images.get);
 };

@@ -2,6 +2,7 @@
 const EventEmitter = require('events').EventEmitter;
 const to = require('await-to-js').to;
 const validator = require('../utils/validator');
+const commonUtils = require('../utils/common');
 const imageSeeker = require('../services/image');
 
 // ----------------
@@ -10,21 +11,15 @@ const imageSeeker = require('../services/image');
 
 function get(req, res) {
     const workflow = new EventEmitter();
-    const cb = (error, response) => {
-        if (error) {
-            res.send({
-                error,
-            });
-        } else {
-            res.send(response);
-        }
-    };
-    const request = req.query.q;
+    const cb = commonUtils.getResponseCallback(res);
+    const word = req.query.q;
+    const authorization = req.headers.authorization;
 
     workflow.on('validateParams', () => {
         validator.check({
-            q: ['string', request, (internalCallback) => {
-                if (/^[a-zA-Z -]+$/.test(request)) {
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            word: ['string', word, (internalCallback) => {
+                if (/^[a-zA-Z -]+$/.test(word)) {
                     internalCallback();
                 } else {
                     internalCallback('Request contains wrong symbols');
@@ -40,7 +35,7 @@ function get(req, res) {
     });
 
     workflow.on('getImage', async () => {
-        const [err, translate] = await to(imageSeeker.get(request));
+        const [err, translate] = await to(imageSeeker.get(word));
         if (err) {
             cb(err);
         } else {
