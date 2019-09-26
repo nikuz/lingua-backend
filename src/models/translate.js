@@ -31,11 +31,17 @@ function get(options, callback) {
             {
                 $pattern: word,
             },
-            (error, response) => {
+            (error, res) => {
                 if (error) {
                     cb(error);
-                } else {
+                } else if (res) {
+                    const response = {
+                        ...res,
+                        raw: JSON.parse(res.raw),
+                    };
                     cb(null, response);
+                } else {
+                    cb(null, null);
                 }
             }
         );
@@ -71,7 +77,6 @@ function find(options, callback) {
                 if (error) {
                     cb(error);
                 } else {
-                    console.log(response);
                     cb(null, response);
                 }
             }
@@ -183,7 +188,7 @@ function pronunciationRemove(options, callback) {
     workflow.emit('validateParams');
 }
 
-function set(options, callback) {
+function save(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
     const {
@@ -196,7 +201,6 @@ function set(options, callback) {
     const imagesPath = commonUtils.getImagesPath();
     let fileId;
     let imageExtension;
-    let pronunciationFilePath;
 
     workflow.on('validateParams', () => {
         validator.check({
@@ -218,7 +222,6 @@ function set(options, callback) {
             if (err) {
                 cb(err);
             } else if (response) {
-                console.log(response);
                 cb('Word already exists in database')
             } else {
                 workflow.emit('getFileId');
@@ -244,47 +247,89 @@ function set(options, callback) {
             } else {
                 imageExtension = imageData[1];
                 fs.writeFileSync(`${imagesPath}/${fileId}.${imageExtension}`, imageData[2], 'base64');
-                workflow.emit('savePronunciations');
+                workflow.emit('fillDatabase');
             }
         } else {
-            workflow.emit('savePronunciations');
+            workflow.emit('fillDatabase');
         }
     });
 
-    workflow.on('savePronunciations', () => {
-        pronunciationSave({
-            word,
-            pronunciationURL,
-        }, (err, value) => {
-            if (err) {
-                cb(err);
-            } else {
-                pronunciationFilePath = value;
-                workflow.emit('fillDatabase');
-            }
-        });
-    });
-
     workflow.on('fillDatabase', () => {
-        const imageData = imageExtension ? `/images/${fileId}.${imageExtension}` : '';
+        const imageUrl = imageExtension ? `/images/${fileId}.${imageExtension}` : '';
         db.run(
             `
                 INSERT INTO dictionary (word, translation, pronunciation, raw, image)
-                VALUES($word, $translation, $pronunciation, $raw, $imageData);
+                VALUES($word, $translation, $pronunciation, $raw, $image);
             `,
             {
                 $word: word,
                 $translation: translation,
-                $pronunciation: pronunciationFilePath,
+                $pronunciation: pronunciationURL,
                 $raw: raw,
-                $image: imageData,
+                $image: imageUrl,
             },
-            (error, response) => {
+            (error) => {
                 if (error) {
                     cb(error);
                 } else {
-                    console.log(response);
-                    cb(null, response);
+                    get({ word }, cb);
+                }
+            }
+        );
+    });
+
+    workflow.emit('validateParams');
+}
+
+function update(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const {
+        word,
+        translation,
+    } = options;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            word: ['string', word],
+            translation: ['string', translation],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('checkExiting');
+            }
+        });
+    });
+
+    workflow.on('checkExiting', () => {
+        get({ word }, (err, response) => {
+            if (err) {
+                cb(err);
+            } else if (!response) {
+                cb('Word doesn\'t exists in database')
+            } else {
+                workflow.emit('updateDatabase');
+            }
+        });
+    });
+
+    workflow.on('updateDatabase', () => {
+        db.run(
+            `
+                UPDATE dictionary
+                SET translation=$translation
+                WHERE word=$word;
+            `,
+            {
+                $word: word,
+                $translation: translation,
+            },
+            (error) => {
+                if (error) {
+                    cb(error);
+                } else {
+                    get({ word }, cb);
                 }
             }
         );
@@ -298,5 +343,6 @@ exports = module.exports = {
     find,
     pronunciationSave,
     pronunciationRemove,
-    set,
+    save,
+    update,
 };

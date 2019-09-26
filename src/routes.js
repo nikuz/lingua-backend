@@ -32,6 +32,8 @@ exports = module.exports = (app) => {
 
     // translation
     app.get('/translate', controllers.translate.get);
+    app.post('/translate', controllers.translate.save);
+    app.put('/translate', controllers.translate.update);
     app.delete('/pronunciation', controllers.translate.removePronunciation);
     app.get('/image', controllers.images.get);
 };

@@ -77,19 +77,26 @@ function get(req, res) {
     workflow.emit('validateParams');
 }
 
-function set(req, res) {
+function save(req, res) {
     const workflow = new EventEmitter();
     const body = req.body || {};
     const cb = commonUtils.getResponseCallback(res);
     const authorization = req.headers.authorization;
+    const {
+        word,
+        translation,
+        raw,
+        pronunciationURL,
+        image,
+    } = body;
 
     workflow.on('validateParams', () => {
         validator.check({
             authorization: commonUtils.getApiKeyValidator(authorization),
-            word: ['string', body.word],
-            translation: ['string', body.translation],
-            raw: ['string', body.raw],
-            pronunciationURL: ['string', body.pronunciationURL],
+            word: ['string', word],
+            translation: ['string', translation],
+            raw: ['string', raw],
+            pronunciationURL: ['string', pronunciationURL],
         }, (err) => {
             if (err) {
                 cb(err);
@@ -100,7 +107,59 @@ function set(req, res) {
     });
 
     workflow.on('save', async () => {
+        translator.save({
+            word,
+            translation,
+            raw,
+            pronunciationURL,
+            image,
+        }, (err, response) => {
+            if (err) {
+                cb('Can\'t save translation');
+            } else {
+                cb(null, response);
+            }
+        });
+    });
 
+    workflow.emit('validateParams');
+}
+
+function update(req, res) {
+    const workflow = new EventEmitter();
+    const body = req.body || {};
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+    const {
+        word,
+        translation,
+    } = body;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            word: ['string', word],
+            translation: ['string', translation],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('update');
+            }
+        });
+    });
+
+    workflow.on('update', async () => {
+        translator.update({
+            word,
+            translation,
+        }, (err, response) => {
+            if (err) {
+                cb('Can\'t update translation');
+            } else {
+                cb(null, response);
+            }
+        });
     });
 
     workflow.emit('validateParams');
@@ -144,6 +203,7 @@ function removePronunciation(req, res) {
 
 exports = module.exports = {
     get,
-    set,
+    save,
+    update,
     removePronunciation,
 };
