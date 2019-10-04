@@ -338,6 +338,60 @@ function update(options, callback) {
     workflow.emit('validateParams');
 }
 
+function deleteTranslation(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const { id } = options;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            id: ['string', id],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('checkExiting');
+            }
+        });
+    });
+
+    workflow.on('checkExiting', () => {
+        db.get(
+            'SELECT * FROM dictionary WHERE id=$id;',
+            {
+                $id: id,
+            },
+            (error, res) => {
+                if (error) {
+                    cb(error);
+                } else if (res) {
+                    workflow.emit('delete');
+                } else {
+                    cb('Translation doesn\'t exists');
+                }
+            }
+        );
+    });
+
+    workflow.on('delete', () => {
+        db.run(
+            `DELETE FROM dictionary WHERE id=$id;`,
+            {
+                $id: id,
+            },
+            (error) => {
+                if (error) {
+                    cb(error);
+                } else {
+                    cb();
+                }
+            }
+        );
+    });
+
+    workflow.emit('validateParams');
+}
+
 function getList(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
@@ -390,5 +444,6 @@ exports = module.exports = {
     pronunciationRemove,
     save,
     update,
+    deleteTranslation,
     getList,
 };

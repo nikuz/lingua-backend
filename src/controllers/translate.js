@@ -165,6 +165,38 @@ function update(req, res) {
     workflow.emit('validateParams');
 }
 
+function deleteTranslation(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+    const id = req.query.id;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            id: ['string', id],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('delete');
+            }
+        });
+    });
+
+    workflow.on('delete', async () => {
+        translator.deleteTranslation({ id }, (err, response) => {
+            if (err) {
+                cb('Can\'t delete translation');
+            } else {
+                cb(null, response);
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 function removePronunciation(req, res) {
     const workflow = new EventEmitter();
     const cb = commonUtils.getResponseCallback(res);
@@ -246,6 +278,7 @@ exports = module.exports = {
     get,
     save,
     update,
+    deleteTranslation,
     removePronunciation,
     getList,
 };
