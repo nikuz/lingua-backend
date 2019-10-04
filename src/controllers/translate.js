@@ -77,6 +77,53 @@ function get(req, res) {
     workflow.emit('validateParams');
 }
 
+function search(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const wordPart = req.query.q;
+    const authorization = req.headers.authorization;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            wordPart: ['string', wordPart, (internalCallback) => {
+                if (/^[a-zA-Z -]+$/.test(wordPart)) {
+                    internalCallback();
+                } else {
+                    internalCallback('Request contains wrong symbols');
+                }
+            }],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('search');
+            }
+        });
+    });
+
+    workflow.on('search', async () => {
+        translator.search({
+            wordPart,
+        }, (err, response) => {
+            if (err) {
+                cb(err);
+            } else {
+                cb(null, {
+                    from: 0,
+                    to: response.length,
+                    translations: response.map(item => ({
+                        ...item,
+                        raw: JSON.parse(item.raw),
+                    })),
+                })
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 function save(req, res) {
     const workflow = new EventEmitter();
     const body = req.body || {};
@@ -276,6 +323,7 @@ function getList(req, res) {
 
 exports = module.exports = {
     get,
+    search,
     save,
     update,
     deleteTranslation,

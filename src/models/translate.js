@@ -50,7 +50,7 @@ function get(options, callback) {
     workflow.emit('validateParams');
 }
 
-function find(options, callback) {
+function search(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
     const wordPart = options.wordPart;
@@ -68,7 +68,7 @@ function find(options, callback) {
     });
 
     workflow.on('search', () => {
-        db.run(
+        db.all(
             'SELECT * FROM dictionary WHERE word LIKE $pattern;',
             {
                 $pattern: `%${wordPart}%`,
@@ -439,7 +439,7 @@ function getList(options, callback) {
 
 exports = module.exports = {
     get,
-    find,
+    search,
     pronunciationSave,
     pronunciationRemove,
     save,
