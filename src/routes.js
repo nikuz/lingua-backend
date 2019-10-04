@@ -2,6 +2,7 @@
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
+const compression = require('compression');
 const controllers = require('./controllers/index');
 
 exports = module.exports = (app) => {
@@ -19,6 +20,7 @@ exports = module.exports = (app) => {
         res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
         next();
     });
+    app.use(compression());
 
     // main page
     app.get('/', (req, res) => {
@@ -36,4 +38,5 @@ exports = module.exports = (app) => {
     app.put('/translate', controllers.translate.update);
     app.delete('/pronunciation', controllers.translate.removePronunciation);
     app.get('/image', controllers.images.get);
+    app.get('/translations', controllers.translate.getList);
 };

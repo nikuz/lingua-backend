@@ -197,6 +197,47 @@ function removePronunciation(req, res) {
     workflow.emit('validateParams');
 }
 
+function getList(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+    const from = Number(req.query.from);
+    const to = Number(req.query.to);
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            from: ['number', from],
+            to: ['number', to],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getList');
+            }
+        });
+    });
+
+    workflow.on('getList', async () => {
+        translator.getList({ from, to }, (err, response) => {
+            if (err) {
+                cb(`Can't get list of translations`);
+            } else {
+                cb(null, {
+                    from,
+                    to,
+                    translations: response.map(item => ({
+                        ...item,
+                        raw: JSON.parse(item.raw),
+                    })),
+                });
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 // ---------
 // interface
 // ---------
@@ -206,4 +247,5 @@ exports = module.exports = {
     save,
     update,
     removePronunciation,
+    getList,
 };

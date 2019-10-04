@@ -33,13 +33,20 @@ function get(query, params, callback) {
     });
 }
 
+function all(query, params, callback) {
+    db.serialize(() => {
+        db.all(query, params, callback);
+    });
+}
+
 function close() {
     db.close();
 }
 
 exports = module.exports = {
     initiate,
-    get,
     run,
+    get,
+    all,
     close,
 };

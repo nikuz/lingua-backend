@@ -338,6 +338,51 @@ function update(options, callback) {
     workflow.emit('validateParams');
 }
 
+function getList(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const {
+        from,
+        to,
+    } = options;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            from: ['number', from],
+            to: ['number', to],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getList');
+            }
+        });
+    });
+
+    workflow.on('getList', () => {
+        db.all(
+            `
+                SELECT * FROM dictionary
+                WHERE id >= $from AND id <= $to
+                ORDER BY created_at DESC;
+            `,
+            {
+                $from: from,
+                $to: to,
+            },
+            (error, response) => {
+                if (error) {
+                    cb(error);
+                } else {
+                    cb(null, response);
+                }
+            }
+        );
+    });
+
+    workflow.emit('validateParams');
+}
+
 exports = module.exports = {
     get,
     find,
@@ -345,4 +390,5 @@ exports = module.exports = {
     pronunciationRemove,
     save,
     update,
+    getList,
 };
