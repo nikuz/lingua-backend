@@ -69,7 +69,7 @@ function search(options, callback) {
 
     workflow.on('search', () => {
         db.all(
-            'SELECT * FROM dictionary WHERE word LIKE $pattern;',
+            'SELECT * FROM dictionary WHERE word LIKE $pattern ORDER BY created_at DESC;',
             {
                 $pattern: `%${wordPart}%`,
             },
@@ -182,43 +182,11 @@ function pronunciationRemove(options, callback) {
 
     workflow.on('removePronunciations', () => {
         const pronunciationsFile = commonUtils.getPronunciationFilePath(pronunciationsPath, fileId);
-        fs.unlink(pronunciationsFile, cb);
-    });
-
-    workflow.emit('validateParams');
-}
-
-function imageRemove(options, callback) {
-    const workflow = new EventEmitter();
-    const cb = callback || _.noop;
-    const { word } = options;
-    const imagesPath = commonUtils.getImagesPath();
-    let fileId;
-
-    workflow.on('validateParams', () => {
-        validator.check({
-            word: ['string', word],
-        }, (err) => {
-            if (err) {
-                cb(err);
-            } else {
-                workflow.emit('getFileId');
-            }
-        });
-    });
-
-    workflow.on('getFileId', () => {
-        fileId = commonUtils.getFileId(word);
-        if (!fileId.length) {
-            cb('Can\'t create file id from word');
+        if (fs.existsSync(pronunciationsFile)) {
+            fs.unlink(pronunciationsFile, cb);
         } else {
-            workflow.emit('removeImage');
+            cb();
         }
-    });
-
-    workflow.on('removeImage', () => {
-        const imageFile = commonUtils.getImageFilePath(imagesPath, fileId);
-        fs.unlink(imageFile, cb);
     });
 
     workflow.emit('validateParams');
@@ -422,13 +390,32 @@ function deleteTranslation(options, callback) {
     });
 
     workflow.on('deleteImage', () => {
-        imageRemove({ word: translation.word }, (err) => {
-            if (err) {
-                cb(err);
+        const fileId = commonUtils.getFileId(translation.word);
+        if (!fileId.length) {
+            cb('Can\'t create file id from word');
+        } else {
+            const imagesPath = commonUtils.getImagesPath();
+            let imageExtension = translation.image.match(/\.(.+)$/);
+            if (!imageExtension) {
+                imageExtension = 'jpeg';
+            } else {
+                imageExtension = imageExtension[1];
+            }
+
+            const imageFile = `${imagesPath}/${fileId}.${imageExtension}`;
+
+            if (fs.existsSync(imageFile)) {
+                fs.unlink(imageFile, (err) => {
+                    if (err) {
+                        cb(err);
+                    } else {
+                        workflow.emit('deleteDbBRow');
+                    }
+                });
             } else {
                 workflow.emit('deleteDbBRow');
             }
-        });
+        }
     });
 
     workflow.on('deleteDbBRow', () => {
@@ -475,12 +462,12 @@ function getList(options, callback) {
         db.all(
             `
                 SELECT * FROM dictionary
-                WHERE id >= $from AND id <= $to
-                ORDER BY created_at DESC;
+                ORDER BY created_at DESC
+                LIMIT $limit OFFSET $offset;
             `,
             {
-                $from: from,
-                $to: to,
+                $limit: to - from,
+                $offset: from,
             },
             (error, response) => {
                 if (error) {
@@ -495,14 +482,31 @@ function getList(options, callback) {
     workflow.emit('validateParams');
 }
 
+function getTotalAmount(options, callback) {
+    const cb = callback || _.noop;
+    const columnName = 'COUNT(id)';
+
+    db.all(
+        `SELECT ${columnName} FROM dictionary;`,
+        {},
+        (error, response) => {
+            if (error) {
+                cb(error);
+            } else {
+                cb(null, response[0][columnName]);
+            }
+        }
+    );
+}
+
 exports = module.exports = {
     get,
     search,
     pronunciationSave,
     pronunciationRemove,
-    imageRemove,
     save,
     update,
     deleteTranslation,
     getList,
+    getTotalAmount,
 };

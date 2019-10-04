@@ -28,7 +28,7 @@ function get(query) {
                 });
             } else {
                 resolve({
-                    image: imageResponse,
+                    images: imageResponse,
                 });
             }
         });
@@ -50,18 +50,23 @@ function get(query) {
         ]);
 
         imageResponse = await page.$$eval('img', images => {
-            let firstImageSrc;
+            const firstThreeImages = [];
+            let foundImages = 0;
             const reg = /^data:image\/(jpeg|png|jpg);base64,/;
 
             for (let i = 0; i < images.length; i++) {
-                const src = images[i].getAttribute('src');
-                if (reg.test(src)) {
-                    firstImageSrc = src;
-                    break;
+                const image = images[i];
+                const src = image.getAttribute('src');
+                if (image.width > 50 && reg.test(src)) {
+                    firstThreeImages.push(src);
+                    foundImages++;
+                    if (foundImages === 3) {
+                        break;
+                    }
                 }
             }
 
-            return firstImageSrc;
+            return firstThreeImages;
         });
 
         await to(page.close());

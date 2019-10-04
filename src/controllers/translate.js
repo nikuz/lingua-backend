@@ -317,6 +317,38 @@ function getList(req, res) {
     workflow.emit('validateParams');
 }
 
+function getTotalAmount(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getAmount');
+            }
+        });
+    });
+
+    workflow.on('getAmount', async () => {
+        translator.getTotalAmount({}, (err, response) => {
+            if (err) {
+                cb(`Can't get total amount of translations`);
+            } else {
+                cb(null, {
+                    value: response,
+                });
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 // ---------
 // interface
 // ---------
@@ -329,4 +361,5 @@ exports = module.exports = {
     deleteTranslation,
     removePronunciation,
     getList,
+    getTotalAmount,
 };
