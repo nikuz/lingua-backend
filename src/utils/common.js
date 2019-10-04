@@ -24,6 +24,10 @@ function getImagesPath() {
     return path.resolve(__dirname, '../../images');
 }
 
+function getImageFilePath(imagesPath, fileId) {
+    return `${imagesPath}/${fileId}.jpeg`;
+}
+
 function getPronunciationsPath() {
     return path.resolve(__dirname, '../../pronunciations');
 }
@@ -46,6 +50,7 @@ exports = module.exports = {
     getResponseCallback,
     getFileId,
     getImagesPath,
+    getImageFilePath,
     getPronunciationsPath,
     getPronunciationFilePath,
     getApiKeyValidator,

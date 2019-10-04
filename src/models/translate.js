@@ -188,6 +188,42 @@ function pronunciationRemove(options, callback) {
     workflow.emit('validateParams');
 }
 
+function imageRemove(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const { word } = options;
+    const imagesPath = commonUtils.getImagesPath();
+    let fileId;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            word: ['string', word],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getFileId');
+            }
+        });
+    });
+
+    workflow.on('getFileId', () => {
+        fileId = commonUtils.getFileId(word);
+        if (!fileId.length) {
+            cb('Can\'t create file id from word');
+        } else {
+            workflow.emit('removeImage');
+        }
+    });
+
+    workflow.on('removeImage', () => {
+        const imageFile = commonUtils.getImageFilePath(imagesPath, fileId);
+        fs.unlink(imageFile, cb);
+    });
+
+    workflow.emit('validateParams');
+}
+
 function save(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
@@ -342,6 +378,7 @@ function deleteTranslation(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
     const { id } = options;
+    let translation;
 
     workflow.on('validateParams', () => {
         validator.check({
@@ -364,16 +401,37 @@ function deleteTranslation(options, callback) {
             (error, res) => {
                 if (error) {
                     cb(error);
-                } else if (res) {
-                    workflow.emit('delete');
-                } else {
+                } else if (!res) {
                     cb('Translation doesn\'t exists');
+                } else {
+                    translation = res;
+                    workflow.emit('deletePronunciation');
                 }
             }
         );
     });
 
-    workflow.on('delete', () => {
+    workflow.on('deletePronunciation', () => {
+        pronunciationRemove({ word: translation.word }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('deleteImage');
+            }
+        });
+    });
+
+    workflow.on('deleteImage', () => {
+        imageRemove({ word: translation.word }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('deleteDbBRow');
+            }
+        });
+    });
+
+    workflow.on('deleteDbBRow', () => {
         db.run(
             `DELETE FROM dictionary WHERE id=$id;`,
             {
@@ -442,6 +500,7 @@ exports = module.exports = {
     search,
     pronunciationSave,
     pronunciationRemove,
+    imageRemove,
     save,
     update,
     deleteTranslation,
