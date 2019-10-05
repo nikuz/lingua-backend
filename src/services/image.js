@@ -2,7 +2,9 @@
 const puppeteer = require('puppeteer');
 const to = require('await-to-js').to;
 
-function get(query) {
+const defaultAmount = 5;
+
+function get(query, amount) {
     return new Promise(async (resolve, reject) => {
         const browser = await puppeteer.launch({
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -49,8 +51,8 @@ function get(query) {
             page.waitForNavigation({ waitUntil: 'networkidle0' }),
         ]);
 
-        imageResponse = await page.$$eval('img', images => {
-            const firstThreeImages = [];
+        imageResponse = await page.$$eval('img', (images, amount, defaultAmount) => {
+            const firstImages = [];
             let foundImages = 0;
             const reg = /^data:image\/(jpeg|png|jpg);base64,/;
 
@@ -58,16 +60,16 @@ function get(query) {
                 const image = images[i];
                 const src = image.getAttribute('src');
                 if (image.width > 50 && reg.test(src)) {
-                    firstThreeImages.push(src);
+                    firstImages.push(src);
                     foundImages++;
-                    if (foundImages === 3) {
+                    if (foundImages === (amount || defaultAmount)) {
                         break;
                     }
                 }
             }
 
-            return firstThreeImages;
-        });
+            return firstImages;
+        }, amount, defaultAmount);
 
         await to(page.close());
     });

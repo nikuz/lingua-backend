@@ -29,7 +29,7 @@ function get(req, res) {
     });
 
     workflow.on('getImage', async () => {
-        const [err, translate] = await to(imageSeeker.get(word));
+        const [err, translate] = await to(imageSeeker.get(word, 50));
         if (err) {
             cb(err);
         } else {
