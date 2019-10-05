@@ -2,7 +2,6 @@
 const url = require('url');
 const puppeteer = require('puppeteer');
 const to = require('await-to-js').to;
-const translate = require('../models/translate');
 
 const defaultSourceLanguage = 'en';
 const defaultTargetLanguage = 'ru';
@@ -51,20 +50,9 @@ function get(query, sourceLanguage, targetLanguage) {
                     error: requestError,
                 });
             } else {
-                translate.pronunciationSave({
-                    word: query,
+                resolve({
+                    raw: rawResponse,
                     pronunciationURL,
-                }, (err, value) => {
-                    if (err) {
-                        reject({
-                            error: err,
-                        });
-                    } else {
-                        resolve({
-                            raw: rawResponse,
-                            pronunciationURL: value,
-                        });
-                    }
                 });
             }
         });

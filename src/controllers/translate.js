@@ -19,13 +19,7 @@ function get(req, res) {
     workflow.on('validateParams', () => {
         validator.check({
             authorization: commonUtils.getApiKeyValidator(authorization),
-            word: ['string', word, (internalCallback) => {
-                if (/^[a-zA-Z -]+$/.test(word)) {
-                    internalCallback();
-                } else {
-                    internalCallback('Request contains wrong symbols');
-                }
-            }],
+            word: ['string', word],
         }, (err) => {
             if (err) {
                 cb(err);
@@ -50,26 +44,46 @@ function get(req, res) {
     });
 
     workflow.on('translate', async () => {
-        const [err, translate] = await to(translatorService.get(word));
+        let sourceLanguage = 'en';
+        let targetLanguage = 'ru';
+        const isCyrillicWord = /[а-яА-Я]/.test(word);
+
+        if (isCyrillicWord) {
+            sourceLanguage = 'ru';
+            targetLanguage = 'en';
+        }
+
+        const [err, translate] = await to(translatorService.get(word, sourceLanguage, targetLanguage));
         if (err) {
             cb(err);
         } else {
             let raw;
-            let err;
             try {
                 raw = JSON.parse(translate.raw);
             } catch (e) {
-                err = e;
-            } finally {
-                if (err) {
-                    cb(err);
-                } else {
-                    cb(null, {
-                        word,
-                        raw,
-                        pronunciation: translate.pronunciationURL,
-                    });
-                }
+                return cb(e);
+            }
+
+            if (isCyrillicWord) {
+                cb(null, {
+                    word,
+                    raw,
+                });
+            } else {
+                translator.pronunciationSave({
+                    word,
+                    pronunciationURL: translate.pronunciationURL,
+                }, (err, value) => {
+                    if (err) {
+                        cb(err);
+                    } else {
+                        cb(null, {
+                            word,
+                            raw,
+                            pronunciation: value,
+                        });
+                    }
+                });
             }
         }
     });

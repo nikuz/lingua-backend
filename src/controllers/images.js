@@ -18,13 +18,7 @@ function get(req, res) {
     workflow.on('validateParams', () => {
         validator.check({
             authorization: commonUtils.getApiKeyValidator(authorization),
-            word: ['string', word, (internalCallback) => {
-                if (/^[a-zA-Z -]+$/.test(word)) {
-                    internalCallback();
-                } else {
-                    internalCallback('Request contains wrong symbols');
-                }
-            }],
+            word: ['string', word],
         }, (err) => {
             if (err) {
                 cb(err);
