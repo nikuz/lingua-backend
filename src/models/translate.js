@@ -69,7 +69,13 @@ function search(options, callback) {
 
     workflow.on('search', () => {
         db.all(
-            'SELECT * FROM dictionary WHERE word LIKE $pattern ORDER BY created_at DESC;',
+            `
+                SELECT * FROM dictionary 
+                WHERE 
+                    word LIKE $pattern 
+                    OR translation LIKE $pattern 
+                ORDER BY created_at DESC;
+            `,
             {
                 $pattern: `%${wordPart}%`,
             },
