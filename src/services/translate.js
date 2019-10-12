@@ -34,14 +34,14 @@ function get(query, sourceLanguage, targetLanguage) {
 
                 response.text().then(async raw => {
                     rawResponse = raw;
-                    await browser.close();
+                    await to(browser.close());
                 });
             }
         });
 
         page.on('error', async error => {
             requestError = error;
-            await browser.close();
+            await to(browser.close());
         });
 
         browser.on('disconnected', () => {
@@ -71,7 +71,7 @@ function get(query, sourceLanguage, targetLanguage) {
             if (!requestError) {
                 requestError = response.status();
             }
-            await browser.close();
+            await to(browser.close());
         }
     });
 }

@@ -20,10 +20,10 @@ function get(query, amount) {
 
         page.on('error', async (error) => {
             requestError = error;
-            await to(page.close());
+            await to(browser.close());
         });
 
-        page.on('close', () => {
+        browser.on('disconnected', () => {
             if (requestError) {
                 reject({
                     error: requestError,
@@ -43,7 +43,7 @@ function get(query, amount) {
             if (!requestError) {
                 requestError = response.status();
             }
-            await to(page.close());
+            await to(browser.close());
         }
 
         await Promise.all([
@@ -71,7 +71,7 @@ function get(query, amount) {
             return firstImages;
         }, amount, defaultAmount);
 
-        await to(page.close());
+        await to(browser.close());
     });
 }
 
