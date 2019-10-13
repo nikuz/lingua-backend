@@ -4,6 +4,7 @@ const https = require('https');
 const fs = require('fs');
 const EventEmitter = require('events').EventEmitter;
 const _ = require('underscore');
+const asyncParallel = require('async/parallel');
 const validator = require('../utils/validator');
 const commonUtils = require('../utils/common');
 const db = require('../utils/db');
@@ -53,11 +54,17 @@ function get(options, callback) {
 function search(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
-    const wordPart = options.wordPart;
+    const {
+        wordPart,
+        from,
+        to,
+    } = options;
 
     workflow.on('validateParams', () => {
         validator.check({
             wordPart: ['string', wordPart],
+            from: ['number', from],
+            to: ['number', to],
         }, (err) => {
             if (err) {
                 cb(err);
@@ -68,25 +75,48 @@ function search(options, callback) {
     });
 
     workflow.on('search', () => {
-        db.all(
-            `
-                SELECT * FROM dictionary 
-                WHERE 
-                    word LIKE $pattern 
-                    OR translation LIKE $pattern 
-                ORDER BY created_at DESC;
-            `,
-            {
-                $pattern: `%${wordPart}%`,
+        asyncParallel([
+            (callback) => {
+                db.all(
+                    `
+                        SELECT * FROM dictionary 
+                        WHERE 
+                            word LIKE $pattern 
+                            OR translation LIKE $pattern 
+                        ORDER BY created_at DESC
+                        LIMIT $limit OFFSET $offset;
+                    `,
+                    {
+                        $pattern: `%${wordPart}%`,
+                        $limit: to - from,
+                        $offset: from,
+                    },
+                    callback
+                );
             },
-            (error, response) => {
-                if (error) {
-                    cb(error);
-                } else {
-                    cb(null, response);
-                }
-            }
-        );
+            (callback) => {
+                const columnName = 'COUNT(id)';
+                db.get(
+                    `
+                    SELECT ${columnName} 
+                    FROM dictionary 
+                    WHERE
+                        word LIKE $pattern 
+                        OR translation LIKE $pattern;
+                    `,
+                    {
+                        $pattern: `%${wordPart}%`,
+                    },
+                    (error, response) => {
+                        if (error) {
+                            callback(error);
+                        } else {
+                            callback(null, response[columnName]);
+                        }
+                    }
+                );
+            },
+        ], cb);
     });
 
     workflow.emit('validateParams');
@@ -443,6 +473,23 @@ function deleteTranslation(options, callback) {
     workflow.emit('validateParams');
 }
 
+function getTotalAmount(options, callback) {
+    const cb = callback || _.noop;
+    const columnName = 'COUNT(id)';
+
+    db.get(
+        `SELECT ${columnName} FROM dictionary;`,
+        {},
+        (error, response) => {
+            if (error) {
+                cb(error);
+            } else {
+                cb(null, response[columnName]);
+            }
+        }
+    );
+}
+
 function getList(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
@@ -465,44 +512,26 @@ function getList(options, callback) {
     });
 
     workflow.on('getList', () => {
-        db.all(
-            `
-                SELECT * FROM dictionary
-                ORDER BY created_at DESC
-                LIMIT $limit OFFSET $offset;
-            `,
-            {
-                $limit: to - from,
-                $offset: from,
+        asyncParallel([
+            (callback) => {
+                db.all(
+                    `
+                    SELECT * FROM dictionary
+                    ORDER BY created_at DESC
+                    LIMIT $limit OFFSET $offset;
+                `,
+                    {
+                        $limit: to - from,
+                        $offset: from,
+                    },
+                    callback
+                );
             },
-            (error, response) => {
-                if (error) {
-                    cb(error);
-                } else {
-                    cb(null, response);
-                }
-            }
-        );
+            (callback) => getTotalAmount({}, callback),
+        ], cb);
     });
 
     workflow.emit('validateParams');
-}
-
-function getTotalAmount(options, callback) {
-    const cb = callback || _.noop;
-    const columnName = 'COUNT(id)';
-
-    db.all(
-        `SELECT ${columnName} FROM dictionary;`,
-        {},
-        (error, response) => {
-            if (error) {
-                cb(error);
-            } else {
-                cb(null, response[0][columnName]);
-            }
-        }
-    );
 }
 
 exports = module.exports = {
@@ -513,6 +542,6 @@ exports = module.exports = {
     save,
     update,
     deleteTranslation,
-    getList,
     getTotalAmount,
+    getList,
 };

@@ -28,15 +28,11 @@ function run(query, params, callback) {
 }
 
 function get(query, params, callback) {
-    db.serialize(() => {
-        db.get(query, params, callback);
-    });
+    db.get(query, params, callback);
 }
 
 function all(query, params, callback) {
-    db.serialize(() => {
-        db.all(query, params, callback);
-    });
+    db.all(query, params, callback);
 }
 
 function close() {

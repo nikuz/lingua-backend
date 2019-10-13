@@ -95,12 +95,16 @@ function search(req, res) {
     const workflow = new EventEmitter();
     const cb = commonUtils.getResponseCallback(res);
     const wordPart = req.query.q;
+    const from = Number(req.query.from);
+    const to = Number(req.query.to);
     const authorization = req.headers.authorization;
 
     workflow.on('validateParams', () => {
         validator.check({
             authorization: commonUtils.getApiKeyValidator(authorization),
             wordPart: ['string', wordPart],
+            from: ['number', from],
+            to: ['number', to],
         }, (err) => {
             if (err) {
                 cb(err);
@@ -113,14 +117,17 @@ function search(req, res) {
     workflow.on('search', async () => {
         translator.search({
             wordPart,
+            from,
+            to,
         }, (err, response) => {
             if (err) {
                 cb(err);
             } else {
                 cb(null, {
-                    from: 0,
-                    to: response.length,
-                    translations: response.map(item => ({
+                    from,
+                    to,
+                    totalAmount: response[1],
+                    translations: response[0].map(item => ({
                         ...item,
                         raw: JSON.parse(item.raw),
                     })),
@@ -313,7 +320,8 @@ function getList(req, res) {
                 cb(null, {
                     from,
                     to,
-                    translations: response.map(item => ({
+                    totalAmount: response[1],
+                    translations: response[0].map(item => ({
                         ...item,
                         raw: JSON.parse(item.raw),
                     })),
