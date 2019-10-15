@@ -2,12 +2,14 @@
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const EventEmitter = require('events').EventEmitter;
 const _ = require('underscore');
 const asyncParallel = require('async/parallel');
 const validator = require('../utils/validator');
 const commonUtils = require('../utils/common');
 const db = require('../utils/db');
+const randomWords = require('../../database/random-words');
 
 function get(options, callback) {
     const workflow = new EventEmitter();
@@ -312,10 +314,23 @@ function save(options, callback) {
                 if (error) {
                     cb(error);
                 } else {
-                    get({ word }, cb);
+                    workflow.emit('checkRandomWordDuplicate');
                 }
             }
         );
+    });
+
+    workflow.on('checkRandomWordDuplicate', () => {
+        const randomWordsDuplicateIndex = randomWords.findIndex(item => item === word);
+        if (randomWordsDuplicateIndex !== -1) {
+            randomWords.splice(randomWordsDuplicateIndex, 1);
+            fs.writeFileSync(
+                path.resolve(__dirname, '../../database/random-words.json'),
+                JSON.stringify(randomWords, null, 2)
+            );
+        }
+
+        get({ word }, cb);
     });
 
     workflow.emit('validateParams');
@@ -534,6 +549,50 @@ function getList(options, callback) {
     workflow.emit('validateParams');
 }
 
+function getRandomWord(options, callback) {
+    const cb = callback || _.noop;
+
+    cb(null, randomWords[Math.floor(Math.random() * randomWords.length)]);
+}
+
+function deleteRandomWord(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const { word } = options;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            word: ['string', word],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('deleteRandomWord');
+            }
+        });
+    });
+
+    workflow.on('deleteRandomWord', () => {
+        const wordIndex = randomWords.findIndex(item => item === word);
+        if (wordIndex !== -1) {
+            randomWords.splice(wordIndex, 1);
+            workflow.emit('saveRandomWords');
+        } else {
+            cb('Word doesn\'t exists');
+        }
+    });
+
+    workflow.on('saveRandomWords', () => {
+        fs.writeFileSync(
+            path.resolve(__dirname, '../../database/random-words.json'),
+            JSON.stringify(randomWords, null, 2)
+        );
+        cb(null, null);
+    });
+
+    workflow.emit('validateParams');
+}
+
 exports = module.exports = {
     get,
     search,
@@ -544,4 +603,6 @@ exports = module.exports = {
     deleteTranslation,
     getTotalAmount,
     getList,
+    getRandomWord,
+    deleteRandomWord,
 };

@@ -365,6 +365,68 @@ function getTotalAmount(req, res) {
     workflow.emit('validateParams');
 }
 
+function getRandomWord(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getRandomWord');
+            }
+        });
+    });
+
+    workflow.on('getRandomWord', () => {
+        translator.getRandomWord({}, (err, word) => {
+            if (err || !word) {
+                cb(`Custom words doesn't available`);
+            } else {
+                cb(null, word);
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
+function deleteRandomWord(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+    const word = req.query.q;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            word: ['string', word],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('deleteRandomWord');
+            }
+        });
+    });
+
+    workflow.on('deleteRandomWord', async () => {
+        translator.deleteRandomWord({ word }, (err) => {
+            if (err) {
+                cb(`Can't delete random word`);
+            } else {
+                cb(null, null);
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 // ---------
 // interface
 // ---------
@@ -378,4 +440,6 @@ exports = module.exports = {
     removePronunciation,
     getList,
     getTotalAmount,
+    getRandomWord,
+    deleteRandomWord,
 };
