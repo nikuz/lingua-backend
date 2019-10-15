@@ -16,6 +16,38 @@ function get(req, res) {
     const word = req.query.q;
     const authorization = req.headers.authorization;
 
+    const getTranslation = (word) => {
+        return new Promise(async (resolve, reject) => {
+            let sourceLanguage = 'en';
+            let targetLanguage = 'ru';
+            const isCyrillicWord = /[а-яА-Я]/.test(word);
+
+            if (isCyrillicWord) {
+                sourceLanguage = 'ru';
+                targetLanguage = 'en';
+            }
+
+            const [err, translate] = await to(translatorService.get(word, sourceLanguage, targetLanguage));
+
+            if (err) {
+                reject(err);
+            } else {
+                let raw;
+                try {
+                    raw = JSON.parse(translate.raw);
+                } catch (e) {
+                    return reject(e);
+                }
+
+                resolve({
+                    isCyrillicWord,
+                    translate,
+                    raw,
+                });
+            }
+        });
+    };
+
     workflow.on('validateParams', () => {
         validator.check({
             authorization: commonUtils.getApiKeyValidator(authorization),
@@ -44,25 +76,12 @@ function get(req, res) {
     });
 
     workflow.on('translate', async () => {
-        let sourceLanguage = 'en';
-        let targetLanguage = 'ru';
-        const isCyrillicWord = /[а-яА-Я]/.test(word);
+        const [err, translateData] = await to(getTranslation(word));
 
-        if (isCyrillicWord) {
-            sourceLanguage = 'ru';
-            targetLanguage = 'en';
-        }
-
-        const [err, translate] = await to(translatorService.get(word, sourceLanguage, targetLanguage));
         if (err) {
             cb(err);
         } else {
-            let raw;
-            try {
-                raw = JSON.parse(translate.raw);
-            } catch (e) {
-                return cb(e);
-            }
+            const { isCyrillicWord, translate, raw } = translateData;
 
             if (isCyrillicWord) {
                 cb(null, {
@@ -70,9 +89,21 @@ function get(req, res) {
                     raw,
                 });
             } else {
+                const highestRelevantTranslation = raw[0];
+                let pronunciationURL = translate.pronunciationURL;
+                let pronunciationFileName = word;
+                if (word !== highestRelevantTranslation[0][1]) { // spelling error
+                    const [err, fixedTranslateData] = await to(getTranslation(highestRelevantTranslation[0][1]));
+                    if (err) {
+                        return cb(err);
+                    }
+                    pronunciationURL = fixedTranslateData.translate.pronunciationURL;
+                    pronunciationFileName = highestRelevantTranslation[0][1];
+                }
+
                 translator.pronunciationSave({
-                    word,
-                    pronunciationURL: translate.pronunciationURL,
+                    word: pronunciationFileName,
+                    pronunciationURL,
                 }, (err, value) => {
                     if (err) {
                         cb(err);
