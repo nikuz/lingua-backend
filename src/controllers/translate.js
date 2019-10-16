@@ -16,18 +16,18 @@ function get(req, res) {
     const word = req.query.q;
     const authorization = req.headers.authorization;
 
-    const getTranslation = (word) => {
+    const getTranslation = (wordToFind) => {
         return new Promise(async (resolve, reject) => {
             let sourceLanguage = 'en';
             let targetLanguage = 'ru';
-            const isCyrillicWord = /[а-яА-Я]/.test(word);
+            const isCyrillicWord = /[а-яА-Я]/.test(wordToFind);
 
             if (isCyrillicWord) {
                 sourceLanguage = 'ru';
                 targetLanguage = 'en';
             }
 
-            const [err, translate] = await to(translatorService.get(word, sourceLanguage, targetLanguage));
+            const [err, translate] = await to(translatorService.get(wordToFind, sourceLanguage, targetLanguage));
 
             if (err) {
                 reject(err);
@@ -48,6 +48,20 @@ function get(req, res) {
         });
     };
 
+    const checkCache = (wordToFind) => {
+        return new Promise((resolve, reject) => {
+            translator.get({
+                word: wordToFind,
+            }, (err, response) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(response)
+                }
+            });
+        });
+    };
+
     workflow.on('validateParams', () => {
         validator.check({
             authorization: commonUtils.getApiKeyValidator(authorization),
@@ -62,17 +76,14 @@ function get(req, res) {
     });
 
     workflow.on('checkCache', async () => {
-        translator.get({
-            word,
-        }, (err, response) => {
-            if (err) {
-                cb(err);
-            } else if (response) {
-                cb(null, response)
-            } else {
-                workflow.emit('translate');
-            }
-        });
+        const [err, cacheData] = await to(checkCache(word));
+        if (err) {
+            cb(err);
+        } else if (cacheData) {
+            cb(null, cacheData);
+        } else {
+            workflow.emit('translate');
+        }
     });
 
     workflow.on('translate', async () => {
@@ -89,17 +100,26 @@ function get(req, res) {
                     raw,
                 });
             } else {
-                const highestRelevantTranslation = raw[0];
+                const translationData = raw[0];
+                const highestRelevantTranslation = translationData[0][1];
                 let pronunciationURL = translate.pronunciationURL;
                 let pronunciationFileName = word;
-                if (word !== highestRelevantTranslation[0][1]) { // spelling error
-                    const [err, fixedTranslateData] = await to(getTranslation(highestRelevantTranslation[0][1]));
-                    if (err) {
-                        return cb(err);
+                let id;
+                let image;
+                if (word !== highestRelevantTranslation) { // spelling error
+                    const [translateErr, fixedTranslateData] = await to(getTranslation(highestRelevantTranslation));
+                    const [cacheErr, cacheData] = await to(checkCache(highestRelevantTranslation));
+                    if (translateErr || cacheErr) {
+                        return cb(translateErr || cacheErr);
                     }
                     pronunciationURL = fixedTranslateData.translate.pronunciationURL;
-                    pronunciationFileName = highestRelevantTranslation[0][1];
+                    pronunciationFileName = highestRelevantTranslation;
+                    if (cacheData) {
+                        id = cacheData.id;
+                        image = cacheData.image;
+                    }
                 }
+
 
                 translator.pronunciationSave({
                     word: pronunciationFileName,
@@ -109,9 +129,11 @@ function get(req, res) {
                         cb(err);
                     } else {
                         cb(null, {
+                            id,
                             word,
                             raw,
                             pronunciation: value,
+                            image,
                         });
                     }
                 });
@@ -158,10 +180,7 @@ function search(req, res) {
                     from,
                     to,
                     totalAmount: response[1],
-                    translations: response[0].map(item => ({
-                        ...item,
-                        raw: JSON.parse(item.raw),
-                    })),
+                    translations: response[0],
                 })
             }
         });
@@ -352,10 +371,7 @@ function getList(req, res) {
                     from,
                     to,
                     totalAmount: response[1],
-                    translations: response[0].map(item => ({
-                        ...item,
-                        raw: JSON.parse(item.raw),
-                    })),
+                    translations: response[0],
                 });
             }
         });

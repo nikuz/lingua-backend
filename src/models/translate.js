@@ -81,7 +81,8 @@ function search(options, callback) {
             (callback) => {
                 db.all(
                     `
-                        SELECT * FROM dictionary 
+                        SELECT id, word, pronunciation, translation, image, created_at 
+                        FROM dictionary 
                         WHERE 
                             word LIKE $pattern 
                             OR translation LIKE $pattern 
@@ -531,7 +532,8 @@ function getList(options, callback) {
             (callback) => {
                 db.all(
                     `
-                    SELECT * FROM dictionary
+                    SELECT id, word, pronunciation, translation, image, created_at
+                    FROM dictionary
                     ORDER BY created_at DESC
                     LIMIT $limit OFFSET $offset;
                 `,
