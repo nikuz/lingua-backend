@@ -301,7 +301,9 @@ function deleteTranslation(req, res) {
             if (err) {
                 cb('Can\'t delete translation');
             } else {
-                cb(null, response);
+                cb(null, {
+                    success: true,
+                });
             }
         });
     });
