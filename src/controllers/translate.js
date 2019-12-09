@@ -297,11 +297,13 @@ function deleteTranslation(req, res) {
     });
 
     workflow.on('delete', async () => {
-        translator.deleteTranslation({ id }, (err, response) => {
+        translator.deleteTranslation({ id }, (err) => {
             if (err) {
                 cb('Can\'t delete translation');
             } else {
-                cb(null, response);
+                cb(null, {
+                    success: true,
+                });
             }
         });
     });
