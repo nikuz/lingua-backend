@@ -191,10 +191,13 @@ function pronunciationSave(options, callback) {
     workflow.emit('validateParams');
 }
 
+// this function is needed because we store pronunciation mp3 file for every search translation before we actually store
+// a word to the database, and if user decided to not store the word and just close the translation window,
+// we wipe the temporary pronunciation file
 function pronunciationRemove(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
-    const { word } = options;
+    const { word, force } = options;
     const pronunciationsPath = commonUtils.getPronunciationsPath();
     let fileId;
 
@@ -204,6 +207,23 @@ function pronunciationRemove(options, callback) {
         }, (err) => {
             if (err) {
                 cb(err);
+            } else {
+                if (force) {
+                    workflow.emit('getFileId');
+                } else {
+                    workflow.emit('checkAlreadyExists');
+                }
+            }
+        });
+    });
+
+    // we have to check if word was already saved into database by another user in parallel
+    workflow.on('checkAlreadyExists', () => {
+        get({ word }, (err, response) => {
+            if (err) {
+                cb(err);
+            } else if (response) {
+                cb('Can\'t remove pronunciation for word saved in database')
             } else {
                 workflow.emit('getFileId');
             }
@@ -305,8 +325,8 @@ function save(options, callback) {
                 VALUES($word, $translation, $pronunciation, $raw, $image);
             `,
             {
-                $word: word,
-                $translation: translation,
+                $word: word.toLowerCase(),
+                $translation: translation.toLowerCase(),
                 $pronunciation: pronunciationURL,
                 $raw: raw,
                 $image: imageUrl,
@@ -379,7 +399,7 @@ function update(options, callback) {
             `,
             {
                 $word: word,
-                $translation: translation,
+                $translation: translation.toLowerCase(),
             },
             (error) => {
                 if (error) {
@@ -432,7 +452,7 @@ function deleteTranslation(options, callback) {
     });
 
     workflow.on('deletePronunciation', () => {
-        pronunciationRemove({ word: translation.word }, (err) => {
+        pronunciationRemove({ word: translation.word, force: true }, (err) => {
             if (err) {
                 cb(err);
             } else {

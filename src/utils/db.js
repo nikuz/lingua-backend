@@ -11,9 +11,9 @@ function initiate() {
     db.serialize(() => {
         db.run(`CREATE TABLE IF NOT EXISTS dictionary (
             'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-            'word' VARCHAR NOT NULL,
+            'word' VARCHAR NOT NULL COLLATE NOCASE,
             'pronunciation' VARCHAR NOT NULL,
-            'translation' VARCHAR,
+            'translation' VARCHAR COLLATE NOCASE,
             'raw' TEXT NOT NULL,
             'image' VARCHAR,
             'created_at' TEXT DEFAULT CURRENT_TIMESTAMP
