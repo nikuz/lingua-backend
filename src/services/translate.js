@@ -27,7 +27,7 @@ function get(query, sourceLanguage, targetLanguage) {
             if (requestQuery.q === query) {
                 if (requestQuery.tk) {
                     pronunciationURL = process.env.PRONUNCIATION_URL
-                        .replace('{query}', query)
+                        .replace('{query}', encodeURIComponent(query))
                         .replace('{queryLen}', query.length)
                         .replace('{tk}', requestQuery.tk);
                 }

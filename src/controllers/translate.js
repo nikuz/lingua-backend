@@ -13,7 +13,9 @@ const translator = require('../models/translate');
 function get(req, res) {
     const workflow = new EventEmitter();
     const cb = commonUtils.getResponseCallback(res);
-    const word = req.query.q;
+    const word = req.query.q
+        .replace(/[\u2018\u2019]/g, "'") // replace mac single quotes ‘’
+        .replace(/[\u201C\u201D]/g, '"'); // replace mac double quotes “”
     const authorization = req.headers.authorization;
 
     const getTranslation = (wordToFind) => {
@@ -27,7 +29,13 @@ function get(req, res) {
                 targetLanguage = 'en';
             }
 
-            const [err, translate] = await to(translatorService.get(wordToFind, sourceLanguage, targetLanguage));
+            const [err, translate] = await to(
+                translatorService.get(
+                    wordToFind,
+                    sourceLanguage,
+                    targetLanguage
+                )
+            );
 
             if (err) {
                 reject(err);
