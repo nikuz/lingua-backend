@@ -253,6 +253,7 @@ function update(req, res) {
     const {
         word,
         translation,
+        image,
     } = body;
 
     workflow.on('validateParams', () => {
@@ -273,6 +274,7 @@ function update(req, res) {
         translator.update({
             word,
             translation,
+            image: image !== '' ? image : undefined,
         }, (err, response) => {
             if (err) {
                 cb('Can\'t update translation');

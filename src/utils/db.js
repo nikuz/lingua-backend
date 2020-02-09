@@ -16,7 +16,8 @@ function initiate() {
             'translation' VARCHAR COLLATE NOCASE,
             'raw' TEXT NOT NULL,
             'image' VARCHAR,
-            'created_at' TEXT DEFAULT CURRENT_TIMESTAMP
+            'created_at' TEXT DEFAULT CURRENT_TIMESTAMP,
+            'updated_at' TEXT DEFAULT CURRENT_TIMESTAMP
         )`);
     });
 }

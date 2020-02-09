@@ -251,6 +251,48 @@ function pronunciationRemove(options, callback) {
     workflow.emit('validateParams');
 }
 
+function imageSave({ image, fileId }, callback) {
+    const imagesPath = commonUtils.getImagesPath();
+    const base64Reg = /^data:image\/(jpeg|png|jpg);base64,(.+)$/;
+    let imageData = image.match(base64Reg);
+    if (!imageData) {
+        callback('Image is not in base64 format');
+    } else {
+        const imageExtension = imageData[1];
+        fs.writeFileSync(`${imagesPath}/${fileId}.${imageExtension}`, imageData[2], 'base64');
+        callback(null, imageExtension);
+    }
+}
+
+function imageRemove({ word, image }, callback) {
+    const fileId = commonUtils.getFileId(word);
+    if (!fileId.length) {
+        callback('Can\'t create file id from word');
+    } else {
+        const imagesPath = commonUtils.getImagesPath();
+        let extension = image.match(/\.(.+)$/);
+        if (!extension) {
+            extension = 'jpeg';
+        } else {
+            extension = extension[1];
+        }
+
+        const imageFile = `${imagesPath}/${fileId}.${extension}`;
+
+        if (fs.existsSync(imageFile)) {
+            fs.unlink(imageFile, (err) => {
+                if (err) {
+                    callback(err);
+                } else {
+                    callback(null, null);
+                }
+            });
+        } else {
+            callback(null, null);
+        }
+    }
+}
+
 function save(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
@@ -261,7 +303,6 @@ function save(options, callback) {
         pronunciationURL,
         image,
     } = options;
-    const imagesPath = commonUtils.getImagesPath();
     let fileId;
     let imageExtension;
 
@@ -303,15 +344,14 @@ function save(options, callback) {
 
     workflow.on('saveImage', () => {
         if (image) {
-            const base64Reg = /^data:image\/(jpeg|png|jpg);base64,(.+)$/;
-            let imageData = image.match(base64Reg);
-            if (!imageData) {
-                cb('Image is not in base64 format');
-            } else {
-                imageExtension = imageData[1];
-                fs.writeFileSync(`${imagesPath}/${fileId}.${imageExtension}`, imageData[2], 'base64');
-                workflow.emit('fillDatabase');
-            }
+            imageSave({image, fileId}, (err, response) => {
+                if (err) {
+                    cb(err);
+                } else {
+                    imageExtension = response;
+                    workflow.emit('fillDatabase');
+                }
+            });
         } else {
             workflow.emit('fillDatabase');
         }
@@ -321,8 +361,8 @@ function save(options, callback) {
         const imageUrl = imageExtension ? `/images/${fileId}.${imageExtension}` : '';
         db.run(
             `
-                INSERT INTO dictionary (word, translation, pronunciation, raw, image)
-                VALUES($word, $translation, $pronunciation, $raw, $image);
+                INSERT INTO dictionary (word, translation, pronunciation, raw, image, updated_at)
+                VALUES($word, $translation, $pronunciation, $raw, $image, datetime('now'));
             `,
             {
                 $word: word.toLowerCase(),
@@ -363,7 +403,11 @@ function update(options, callback) {
     const {
         word,
         translation,
+        image,
     } = options;
+    let translationData;
+    let fileId;
+    let imageExtension;
 
     workflow.on('validateParams', () => {
         validator.check({
@@ -385,21 +429,70 @@ function update(options, callback) {
             } else if (!response) {
                 cb('Word doesn\'t exists in database')
             } else {
-                workflow.emit('updateDatabase');
+                translationData = response;
+                workflow.emit('getFileId');
             }
         });
     });
 
+    workflow.on('getFileId', () => {
+        fileId = commonUtils.getFileId(word);
+        if (!fileId.length) {
+            cb('Can\'t create file id from word');
+        } else {
+            workflow.emit('deleteOldImage');
+        }
+    });
+
+    workflow.on('deleteOldImage', () => {
+        if (image) {
+            imageRemove({
+                word: translationData.word,
+                image: translationData.image,
+            }, err => {
+                if (err) {
+                    cb(err);
+                } else {
+                    workflow.emit('saveNewImage');
+                }
+            });
+        } else {
+            workflow.emit('saveNewImage');
+        }
+    });
+
+    workflow.on('saveNewImage', () => {
+        if (image) {
+            imageSave({image, fileId}, (err, response) => {
+                if (err) {
+                    cb(err);
+                } else {
+                    imageExtension = response;
+                    workflow.emit('updateDatabase');
+                }
+            });
+        } else {
+            workflow.emit('updateDatabase');
+        }
+    });
+
     workflow.on('updateDatabase', () => {
+        let imageTransaction = '';
+        if (image) {
+            imageTransaction = ', image=$image';
+        }
+        const imageUrl = imageExtension ? `/images/${fileId}.${imageExtension}` : '';
+
         db.run(
             `
                 UPDATE dictionary
-                SET translation=$translation
+                SET translation=$translation, updated_at=datetime('now') ${imageTransaction}
                 WHERE word=$word;
             `,
             {
                 $word: word,
                 $translation: translation.toLowerCase(),
+                $image: imageExtension ? imageUrl : undefined,
             },
             (error) => {
                 if (error) {
@@ -462,32 +555,16 @@ function deleteTranslation(options, callback) {
     });
 
     workflow.on('deleteImage', () => {
-        const fileId = commonUtils.getFileId(translation.word);
-        if (!fileId.length) {
-            cb('Can\'t create file id from word');
-        } else {
-            const imagesPath = commonUtils.getImagesPath();
-            let imageExtension = translation.image.match(/\.(.+)$/);
-            if (!imageExtension) {
-                imageExtension = 'jpeg';
-            } else {
-                imageExtension = imageExtension[1];
-            }
-
-            const imageFile = `${imagesPath}/${fileId}.${imageExtension}`;
-
-            if (fs.existsSync(imageFile)) {
-                fs.unlink(imageFile, (err) => {
-                    if (err) {
-                        cb(err);
-                    } else {
-                        workflow.emit('deleteDbBRow');
-                    }
-                });
+        imageRemove({
+            word: translation.word,
+            image: translation.image,
+        }, err => {
+            if (err) {
+                cb(err);
             } else {
                 workflow.emit('deleteDbBRow');
             }
-        }
+        });
     });
 
     workflow.on('deleteDbBRow', () => {
@@ -552,7 +629,7 @@ function getList(options, callback) {
             (callback) => {
                 db.all(
                     `
-                    SELECT id, word, pronunciation, translation, image, created_at
+                    SELECT id, word, pronunciation, translation, image, created_at, updated_at
                     FROM dictionary
                     ORDER BY created_at DESC
                     LIMIT $limit OFFSET $offset;
