@@ -14,6 +14,7 @@ function get(req, res) {
     const workflow = new EventEmitter();
     const cb = commonUtils.getResponseCallback(res);
     const word = req.query.q
+        .trim()
         .replace(/[\u2018\u2019]/g, "'") // replace mac single quotes ‘’
         .replace(/[\u201C\u201D]/g, '"'); // replace mac double quotes “”
     const authorization = req.headers.authorization;
