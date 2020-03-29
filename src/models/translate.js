@@ -86,11 +86,22 @@ function search(options, callback) {
                         WHERE 
                             word LIKE $pattern 
                             OR translation LIKE $pattern 
-                        ORDER BY created_at DESC
+                        ORDER BY
+                            CASE
+                                WHEN word LIKE $word THEN 1
+                                WHEN word LIKE $patternEnd THEN 2
+                                WHEN word LIKE $patternStart THEN 3
+                                ELSE 4
+                            END,
+                            word ASC,
+                            created_at DESC
                         LIMIT $limit OFFSET $offset;
                     `,
                     {
+                        $word: wordPart,
                         $pattern: `%${wordPart}%`,
+                        $patternStart: `%${wordPart}`,
+                        $patternEnd: `${wordPart}%`,
                         $limit: to - from,
                         $offset: from,
                     },

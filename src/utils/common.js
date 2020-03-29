@@ -46,6 +46,12 @@ function getApiKeyValidator(authorization) {
     }]
 }
 
+function trimMacQuotes(word) {
+    return word.trim()
+        .replace(/[\u2018\u2019]/g, "'") // single quotes ‘’
+        .replace(/[\u201C\u201D]/g, '"'); // double quotes “”
+}
+
 exports = module.exports = {
     getResponseCallback,
     getFileId,
@@ -54,4 +60,5 @@ exports = module.exports = {
     getPronunciationsPath,
     getPronunciationFilePath,
     getApiKeyValidator,
+    trimMacQuotes,
 };
