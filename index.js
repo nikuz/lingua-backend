@@ -1,6 +1,9 @@
 //
 const express = require('express');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({
+    path: path.join(__dirname, '/.env'),
+});
 const db = require('./src/utils/db');
 const routes = require('./src/routes');
 
