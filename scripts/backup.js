@@ -1,7 +1,7 @@
 //
 /* eslint-disable no-console */
 const fs = require('fs');
-const { spawn } = require('child_process');
+const archiver = require('archiver');
 const { google } = require('googleapis');
 const credentials = require('../Lingua-bdcce9a76860.json');
 
@@ -18,73 +18,68 @@ const auth = new google.auth.JWT(
 
 const drive = google.drive({ version: 'v3', auth });
 
-const zip = spawn(
-    'zip',
-    [
-        '-rX',
-        fileName,
-        '../database',
-        '../images',
-        '../pronunciations',
-    ]
-);
-
-zip.stdout.on('data', () => {
-    // console.log(`${data}`);
+const zipOutput = fs.createWriteStream(`${__dirname}/${fileName}`);
+const archive = archiver('zip', {
+    zlib: { level: 9 },
 });
 
-zip.stderr.on('data', (data) => {
-    console.error(`stderr: ${data}`);
+archive.on('error', err => {
+    throw err;
 });
 
-zip.on('close', async (code) => {
+zipOutput.on('close', async () => {
     console.log('Zip done...');
-    if (code === 0) {
-        const filesRequest = await drive.files.list({
-            fields: 'files(id, name, webViewLink)',
+    const filesRequest = await drive.files.list({
+        fields: 'files(id, name, webViewLink)',
+    });
+
+    const files = filesRequest.data.files;
+    console.log(files);
+    const folder = files.find(item => item.name === 'lingua');
+    const alreadySaved = files.find(item => item.name === fileName);
+    if (folder) {
+        if (alreadySaved) {
+            console.log('Remove previous backup...');
+            await drive.files.delete({
+                'fileId': alreadySaved.id,
+            });
+        }
+
+        console.log('Upload...');
+        const newFileRequest = await drive.files.create({
+            resource: {
+                name: fileName,
+            },
+            media: {
+                mimeType: 'application/zip',
+                body: fs.createReadStream(fileName),
+            },
+            fields: 'id',
         });
 
-        const files = filesRequest.data.files;
-        console.log(files);
-        const folder = files.find(item => item.name === 'lingua');
-        const alreadySaved = files.find(item => item.name === fileName);
-        if (folder) {
-            if (alreadySaved) {
-                console.log('Remove previous backup...');
-                await drive.files.delete({
-                    'fileId': alreadySaved.id,
-                });
-            }
+        const newFile = newFileRequest.data;
+        console.log('New file Id: ', newFile.id);
 
-            console.log('Upload...');
-            const newFileRequest = await drive.files.create({
-                resource: {
-                    name: fileName,
-                },
-                media: {
-                    mimeType: 'application/zip',
-                    body: fs.createReadStream(fileName),
-                },
-                fields: 'id',
-            });
+        console.log('Move to lingua folder...');
+        await drive.files.update({
+            fileId: newFile.id,
+            addParents: folder.id,
+            fields: 'id, parents',
+        });
 
-            const newFile = newFileRequest.data;
-            console.log('New file Id: ', newFile.id);
-
-            console.log('Move to lingua folder...');
-            await drive.files.update({
-                fileId: newFile.id,
-                addParents: folder.id,
-                fields: 'id, parents',
-            });
-
-            console.log('Done!');
-            process.exit(0);
-        } else {
-            console.error('No folder access');
-            process.exit(1);
-        }
+        console.log('Done!');
+        process.exit(0);
     } else {
-        console.log(`Code: ${code}`);
+        console.error('No folder access');
+        process.exit(1);
     }
 });
+
+
+archive.pipe(zipOutput);
+
+archive.directory('../database');
+archive.directory('../images');
+archive.directory('../pronunciations');
+
+archive.finalize();
