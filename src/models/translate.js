@@ -89,8 +89,11 @@ function search(options, callback) {
                         ORDER BY
                             CASE
                                 WHEN word LIKE $word THEN 1
+                                WHEN translation LIKE $word THEN 1
                                 WHEN word LIKE $patternEnd THEN 2
+                                WHEN translation LIKE $patternEnd THEN 2
                                 WHEN word LIKE $patternStart THEN 3
+                                WHEN translation LIKE $patternStart THEN 3
                                 ELSE 4
                             END,
                             word ASC,
