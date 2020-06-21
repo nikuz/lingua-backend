@@ -1,4 +1,4 @@
 #!/bin/sh
-cd /home/nikuz/lingua-backend/scripts
-/usr/bin/node backup.js
+cd /Users/nikuz/lingua-backend/scripts
+/usr/local/bin/node backup.js
 

@@ -30,5 +30,11 @@
         </dict>
         <key>WorkingDirectory</key>
         <string>/Users/nikuz/lingua-backend</string>
+	<key>UserName</key>
+        <string>admin</string>
+        <key>GroupName</key>
+        <string>admin</string>
+        <key>InitGroups</key>
+        <true/>
     </dict>
 </plist>
