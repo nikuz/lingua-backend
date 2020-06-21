@@ -390,6 +390,40 @@ function getList(req, res) {
     workflow.emit('validateParams');
 }
 
+function getListItem(req, res) {
+    const workflow = new EventEmitter();
+    const cb = commonUtils.getResponseCallback(res);
+    const authorization = req.headers.authorization;
+    const id = Number(req.params.id);
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            authorization: commonUtils.getApiKeyValidator(authorization),
+            id: ['number', id],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getListItem');
+            }
+        });
+    });
+
+    workflow.on('getListItem', async () => {
+        translator.getListItem({ id }, (err, response) => {
+            if (err) {
+                cb(`Can't get list item`);
+            } else {
+                cb(null, {
+                    item: response,
+                });
+            }
+        });
+    });
+
+    workflow.emit('validateParams');
+}
+
 function getTotalAmount(req, res) {
     const workflow = new EventEmitter();
     const cb = commonUtils.getResponseCallback(res);
@@ -496,6 +530,7 @@ exports = module.exports = {
     deleteTranslation,
     removePronunciation,
     getList,
+    getListItem,
     getTotalAmount,
     getRandomWord,
     deleteRandomWord,

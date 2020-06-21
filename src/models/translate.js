@@ -81,7 +81,7 @@ function search(options, callback) {
             (callback) => {
                 db.all(
                     `
-                        SELECT id, word, pronunciation, translation, image, created_at 
+                        SELECT id, word, pronunciation, translation, image, created_at, updated_at 
                         FROM dictionary 
                         WHERE 
                             word LIKE $pattern 
@@ -662,6 +662,46 @@ function getList(options, callback) {
     workflow.emit('validateParams');
 }
 
+function getListItem(options, callback) {
+    const workflow = new EventEmitter();
+    const cb = callback || _.noop;
+    const { id } = options;
+
+    workflow.on('validateParams', () => {
+        validator.check({
+            id: ['number', id],
+        }, (err) => {
+            if (err) {
+                cb(err);
+            } else {
+                workflow.emit('getListItem');
+            }
+        });
+    });
+
+    workflow.on('getListItem', () => {
+        db.all(
+            `
+                SELECT id, word, pronunciation, translation, image, created_at, updated_at
+                FROM dictionary
+                WHERE id=$id
+            `,
+            {
+                $id: id,
+            },
+            (error, response) => {
+                if (error) {
+                    cb(error);
+                } else {
+                    cb(null, response[0]);
+                }
+            }
+        );
+    });
+
+    workflow.emit('validateParams');
+}
+
 function getRandomWord(options, callback) {
     const cb = callback || _.noop;
 
@@ -716,6 +756,7 @@ exports = module.exports = {
     deleteTranslation,
     getTotalAmount,
     getList,
+    getListItem,
     getRandomWord,
     deleteRandomWord,
 };

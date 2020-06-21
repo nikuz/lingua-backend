@@ -41,6 +41,7 @@ exports = module.exports = (app) => {
     app.delete('/pronunciation', controllers.translate.removePronunciation);
     app.get('/image', controllers.images.get);
     app.get('/translations', controllers.translate.getList);
+    app.get('/translations/:id', controllers.translate.getListItem);
     app.get('/translations/amount', controllers.translate.getTotalAmount);
     app.get('/random_word', controllers.translate.getRandomWord);
     app.delete('/random_word', controllers.translate.deleteRandomWord);
