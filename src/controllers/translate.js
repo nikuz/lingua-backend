@@ -109,7 +109,6 @@ function get(req, res) {
                 const translationData = raw[0];
                 const highestRelevantTranslation = translationData[0][1];
                 let pronunciationURL = translate.pronunciationURL;
-                let pronunciationFileName = word;
                 let id;
                 let image;
                 if (word !== highestRelevantTranslation) { // spelling error
@@ -119,29 +118,18 @@ function get(req, res) {
                         return cb(translateErr || cacheErr);
                     }
                     pronunciationURL = fixedTranslateData.translate.pronunciationURL;
-                    pronunciationFileName = highestRelevantTranslation;
                     if (cacheData) {
                         id = cacheData.id;
                         image = cacheData.image;
                     }
                 }
 
-
-                translator.pronunciationSave({
-                    word: pronunciationFileName,
-                    pronunciationURL,
-                }, (err, value) => {
-                    if (err) {
-                        cb(err);
-                    } else {
-                        cb(null, {
-                            id,
-                            word,
-                            raw,
-                            pronunciation: value,
-                            image,
-                        });
-                    }
+                cb(null, {
+                    id,
+                    word,
+                    raw,
+                    pronunciation: pronunciationURL,
+                    image,
                 });
             }
         }
@@ -312,38 +300,6 @@ function deleteTranslation(req, res) {
                 cb(null, {
                     success: true,
                 });
-            }
-        });
-    });
-
-    workflow.emit('validateParams');
-}
-
-function removePronunciation(req, res) {
-    const workflow = new EventEmitter();
-    const cb = commonUtils.getResponseCallback(res);
-    const authorization = req.headers.authorization;
-    const word = req.query.q;
-
-    workflow.on('validateParams', () => {
-        validator.check({
-            authorization: commonUtils.getApiKeyValidator(authorization),
-            word: ['string', word],
-        }, (err) => {
-            if (err) {
-                cb(err);
-            } else {
-                workflow.emit('removeFile');
-            }
-        });
-    });
-
-    workflow.on('removeFile', async () => {
-        translator.pronunciationRemove({ word }, (err) => {
-            if (err) {
-                cb(`Can't remove pronunciation file for '${word}' word`);
-            } else {
-                cb();
             }
         });
     });
@@ -528,7 +484,6 @@ exports = module.exports = {
     save,
     update,
     deleteTranslation,
-    removePronunciation,
     getList,
     getListItem,
     getTotalAmount,

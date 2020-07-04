@@ -205,9 +205,6 @@ function pronunciationSave(options, callback) {
     workflow.emit('validateParams');
 }
 
-// this function is needed because we store pronunciation mp3 file for every search translation before we actually store
-// a word to the database, and if user decided to not store the word and just close the translation window,
-// we wipe the temporary pronunciation file
 function pronunciationRemove(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
@@ -314,9 +311,9 @@ function save(options, callback) {
         word,
         translation,
         raw,
-        pronunciationURL,
         image,
     } = options;
+    let pronunciationURL = options.pronunciationURL;
     let fileId;
     let imageExtension;
 
@@ -363,12 +360,26 @@ function save(options, callback) {
                     cb(err);
                 } else {
                     imageExtension = response;
-                    workflow.emit('fillDatabase');
+                    workflow.emit('savePronunciation');
                 }
             });
         } else {
-            workflow.emit('fillDatabase');
+            workflow.emit('savePronunciation');
         }
+    });
+
+    workflow.on('savePronunciation', () => {
+        pronunciationSave({
+            word,
+            pronunciationURL,
+        }, (err, response) => {
+            if (err) {
+                cb(err);
+            } else {
+                pronunciationURL = response;
+                workflow.emit('fillDatabase');
+            }
+        });
     });
 
     workflow.on('fillDatabase', () => {
@@ -749,8 +760,6 @@ function deleteRandomWord(options, callback) {
 exports = module.exports = {
     get,
     search,
-    pronunciationSave,
-    pronunciationRemove,
     save,
     update,
     deleteTranslation,
