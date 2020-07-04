@@ -16,8 +16,17 @@ function getResponseCallback(res, code) {
     };
 }
 
-function getFileId(word) {
-    return word.trim().replace(/[\s|/|.|,]/g, '-');
+function getFileId(id, word) {
+    const cleanedWord = word.split(' ')
+        .map(part => (part.trim().replace(/[^A-Za-z0-9]/g, '')))
+        .join('-')
+        .toLowerCase();
+
+    if (cleanedWord.length === 0) {
+        return '';
+    }
+
+    return `${id}-${cleanedWord}`;
 }
 
 function getImagesPath() {

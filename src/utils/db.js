@@ -12,7 +12,7 @@ function initiate() {
         db.run(`CREATE TABLE IF NOT EXISTS dictionary (
             'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             'word' VARCHAR NOT NULL COLLATE NOCASE,
-            'pronunciation' VARCHAR NOT NULL,
+            'pronunciation' VARCHAR,
             'translation' VARCHAR COLLATE NOCASE,
             'raw' TEXT NOT NULL,
             'image' VARCHAR,

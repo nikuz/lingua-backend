@@ -143,32 +143,22 @@ function pronunciationSave(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
     const {
-        word,
         pronunciationURL,
+        fileId,
     } = options;
     const pronunciationsPath = commonUtils.getPronunciationsPath();
-    let fileId;
 
     workflow.on('validateParams', () => {
         validator.check({
-            word: ['string', word],
+            fileId: ['string', fileId],
             pronunciationURL: ['string', pronunciationURL],
         }, (err) => {
             if (err) {
                 cb(err);
             } else {
-                workflow.emit('getFileId');
+                workflow.emit('savePronunciations');
             }
         });
-    });
-
-    workflow.on('getFileId', () => {
-        fileId = commonUtils.getFileId(word);
-        if (!fileId.length) {
-            cb('Can\'t create file id from word');
-        } else {
-            workflow.emit('savePronunciations');
-        }
     });
 
     workflow.on('savePronunciations', () => {
@@ -208,33 +198,17 @@ function pronunciationSave(options, callback) {
 function pronunciationRemove(options, callback) {
     const workflow = new EventEmitter();
     const cb = callback || _.noop;
-    const { word, force } = options;
+    const { id, word } = options;
     const pronunciationsPath = commonUtils.getPronunciationsPath();
     let fileId;
 
     workflow.on('validateParams', () => {
         validator.check({
+            id: ['number', id],
             word: ['string', word],
         }, (err) => {
             if (err) {
                 cb(err);
-            } else {
-                if (force) {
-                    workflow.emit('getFileId');
-                } else {
-                    workflow.emit('checkAlreadyExists');
-                }
-            }
-        });
-    });
-
-    // we have to check if word was already saved into database by another user in parallel
-    workflow.on('checkAlreadyExists', () => {
-        get({ word }, (err, response) => {
-            if (err) {
-                cb(err);
-            } else if (response) {
-                cb('Can\'t remove pronunciation for word saved in database')
             } else {
                 workflow.emit('getFileId');
             }
@@ -242,7 +216,7 @@ function pronunciationRemove(options, callback) {
     });
 
     workflow.on('getFileId', () => {
-        fileId = commonUtils.getFileId(word);
+        fileId = commonUtils.getFileId(id, word);
         if (!fileId.length) {
             cb('Can\'t create file id from word');
         } else {
@@ -275,8 +249,8 @@ function imageSave({ image, fileId }, callback) {
     }
 }
 
-function imageRemove({ word, image }, callback) {
-    const fileId = commonUtils.getFileId(word);
+function imageRemove({ id, word, image }, callback) {
+    const fileId = commonUtils.getFileId(id, word);
     if (!fileId.length) {
         callback('Can\'t create file id from word');
     } else {
@@ -313,6 +287,7 @@ function save(options, callback) {
         raw,
         image,
     } = options;
+    let translationData;
     let pronunciationURL = options.pronunciationURL;
     let fileId;
     let imageExtension;
@@ -339,13 +314,47 @@ function save(options, callback) {
             } else if (response) {
                 cb('Word already exists in database')
             } else {
+                workflow.emit('fillDatabase');
+            }
+        });
+    });
+
+    workflow.on('fillDatabase', () => {
+        db.run(
+            `
+                INSERT INTO dictionary (word, translation, raw, updated_at)
+                VALUES($word, $translation, $raw, datetime('now'));
+            `,
+            {
+                $word: word.toLowerCase(),
+                $translation: translation.toLowerCase(),
+                $raw: raw,
+            },
+            (error) => {
+                if (error) {
+                    cb(error);
+                } else {
+                    workflow.emit('getSavedItem');
+                }
+            }
+        );
+    });
+
+    workflow.on('getSavedItem', () => {
+        get({ word }, (err, response) => {
+            if (err) {
+                cb(err);
+            } else if (!response) {
+                cb('Word doesn\'t exists in database')
+            } else {
+                translationData = response;
                 workflow.emit('getFileId');
             }
         });
     });
 
     workflow.on('getFileId', () => {
-        fileId = commonUtils.getFileId(word);
+        fileId = commonUtils.getFileId(translationData.id, word);
         if (!fileId.length) {
             cb('Can\'t create file id from word');
         } else {
@@ -369,32 +378,33 @@ function save(options, callback) {
     });
 
     workflow.on('savePronunciation', () => {
-        pronunciationSave({
-            word,
-            pronunciationURL,
-        }, (err, response) => {
+        pronunciationSave({pronunciationURL, fileId}, (err, response) => {
             if (err) {
                 cb(err);
             } else {
                 pronunciationURL = response;
-                workflow.emit('fillDatabase');
+                workflow.emit('updateDatabase');
             }
         });
     });
 
-    workflow.on('fillDatabase', () => {
+    workflow.on('updateDatabase', () => {
+        let imageTransaction = '';
+        if (image) {
+            imageTransaction = ', image=$image';
+        }
         const imageUrl = imageExtension ? `/images/${fileId}.${imageExtension}` : '';
+
         db.run(
             `
-                INSERT INTO dictionary (word, translation, pronunciation, raw, image, updated_at)
-                VALUES($word, $translation, $pronunciation, $raw, $image, datetime('now'));
+                UPDATE dictionary
+                SET pronunciation=$pronunciation, updated_at=datetime('now') ${imageTransaction}
+                WHERE id=$id;
             `,
             {
-                $word: word.toLowerCase(),
-                $translation: translation.toLowerCase(),
+                $id: translationData.id,
                 $pronunciation: pronunciationURL,
-                $raw: raw,
-                $image: imageUrl,
+                $image: imageExtension ? imageUrl : undefined,
             },
             (error) => {
                 if (error) {
@@ -461,7 +471,7 @@ function update(options, callback) {
     });
 
     workflow.on('getFileId', () => {
-        fileId = commonUtils.getFileId(word);
+        fileId = commonUtils.getFileId(translationData.id, word);
         if (!fileId.length) {
             cb('Can\'t create file id from word');
         } else {
@@ -472,6 +482,7 @@ function update(options, callback) {
     workflow.on('deleteOldImage', () => {
         if (image) {
             imageRemove({
+                id: translationData.id,
                 word: translationData.word,
                 image: translationData.image,
             }, err => {
@@ -570,7 +581,10 @@ function deleteTranslation(options, callback) {
     });
 
     workflow.on('deletePronunciation', () => {
-        pronunciationRemove({ word: translation.word, force: true }, (err) => {
+        pronunciationRemove({
+            id: translation.id,
+            word: translation.word,
+        }, (err) => {
             if (err) {
                 cb(err);
             } else {
@@ -581,6 +595,7 @@ function deleteTranslation(options, callback) {
 
     workflow.on('deleteImage', () => {
         imageRemove({
+            id: translation.id,
             word: translation.word,
             image: translation.image,
         }, err => {
