@@ -27,8 +27,8 @@ db.all(
                     translations,
                     (item, seriesCallback) => db.run(
                         `
-                            INSERT INTO 'dictionary-new' (word, translation, pronunciation, raw, image, updated_at)
-                            VALUES($word, $translation, $pronunciation, $raw, $image, datetime('now'));
+                            INSERT INTO 'dictionary-new' (word, translation, pronunciation, raw, image, created_at, updated_at)
+                            VALUES($word, $translation, $pronunciation, $raw, $image, datetime($createdAt), datetime($updatedAt));
                         `,
                         {
                             $word: item.word,
@@ -36,6 +36,8 @@ db.all(
                             $pronunciation: item.pronunciation,
                             $raw: item.raw,
                             $image: item.image,
+                            $createdAt: item.created_at,
+                            $updatedAt: item.updated_at,
                         },
                         seriesCallback
                     ),
