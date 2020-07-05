@@ -64,8 +64,8 @@ const removeFiles = (type, translations) => {
                     file.url,
                     path.join(__dirname, '..', file[type].toLowerCase())
                 );
+                files.splice(lowerCaseFileIndex, 1);
             }
-            files.splice(lowerCaseFileIndex, 1);
         }
     }
 
