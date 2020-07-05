@@ -87,7 +87,13 @@ function get(req, res) {
         if (err) {
             cb(err);
         } else if (cacheData) {
-            cb(null, cacheData);
+            cb(
+                null,
+                {
+                    ...cacheData,
+                    remote: true,
+                }
+            );
         } else {
             workflow.emit('translate');
         }
@@ -141,6 +147,7 @@ function get(req, res) {
                             raw,
                             pronunciation: pronunciationBase64,
                             image,
+                            remote: true,
                         });
                     }
                 });

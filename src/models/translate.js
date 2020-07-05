@@ -150,7 +150,7 @@ function pronunciationSave(options, callback) {
     } else {
         const filePath = `${pronunciationsPath}/${fileId}.mp3`;
         fs.writeFileSync(filePath, pronunciationData[1], 'base64');
-        callback(null, filePath);
+        callback(null, `/pronunciations/${fileId}.mp3`);
     }
 }
 
