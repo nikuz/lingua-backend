@@ -212,6 +212,8 @@ function imageRemove({ id, word, image }, callback) {
     const fileId = commonUtils.getFileId(id, word);
     if (!fileId.length) {
         callback('Can\'t create file id from word');
+    } else if (!image) {
+        callback(null, null);
     } else {
         const imagesPath = commonUtils.getImagesPath();
         let extension = image.match(/\.(.+)$/);
