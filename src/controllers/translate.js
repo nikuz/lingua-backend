@@ -5,6 +5,7 @@ const commonUtils = require('../utils/common');
 const validator = require('../utils/validator');
 const translatorService = require('../services/translate');
 const translator = require('../models/translate');
+const request = require('request').defaults({ encoding: null });
 
 // ----------------
 // public functions
@@ -124,12 +125,24 @@ function get(req, res) {
                     }
                 }
 
-                cb(null, {
-                    id,
-                    word,
-                    raw,
-                    pronunciation: pronunciationURL,
-                    image,
+                request.get(pronunciationURL, (error, response, body) => {
+                    if (error || response.statusCode !== 200) {
+                        return cb(error || new Error('Can\'t download pronunciation'));
+                    }
+                    if (response.statusCode === 200) {
+                        const type = response.headers['content-type'];
+                        const pronunciationBase64 = (
+                            `data:${type};base64,${Buffer.from(body).toString('base64')}`
+                        );
+
+                        cb(null, {
+                            id,
+                            word,
+                            raw,
+                            pronunciation: pronunciationBase64,
+                            image,
+                        });
+                    }
                 });
             }
         }

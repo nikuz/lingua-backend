@@ -1,6 +1,4 @@
 //
-const http = require('http');
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('events').EventEmitter;
@@ -140,59 +138,20 @@ function search(options, callback) {
 }
 
 function pronunciationSave(options, callback) {
-    const workflow = new EventEmitter();
-    const cb = callback || _.noop;
     const {
         pronunciationURL,
         fileId,
     } = options;
     const pronunciationsPath = commonUtils.getPronunciationsPath();
-
-    workflow.on('validateParams', () => {
-        validator.check({
-            fileId: ['string', fileId],
-            pronunciationURL: ['string', pronunciationURL],
-        }, (err) => {
-            if (err) {
-                cb(err);
-            } else {
-                workflow.emit('savePronunciations');
-            }
-        });
-    });
-
-    workflow.on('savePronunciations', () => {
-        let httpGet = http.get;
-        if (pronunciationURL.indexOf('https') === 0) {
-            httpGet = https.get;
-        }
-
-        const pronunciationsFile = commonUtils.getPronunciationFilePath(pronunciationsPath, fileId);
-        const pronunciationsFileStream = fs.createWriteStream(pronunciationsFile);
-        const request = httpGet(pronunciationURL, (response) => {
-            if (response.statusCode !== 200) {
-                cb(`Image downloading status code is ${response.statusCode}`);
-            } else {
-                response.pipe(pronunciationsFileStream);
-            }
-        });
-
-        request.on('error', (err) => {
-            cb(err.message);
-        });
-
-        pronunciationsFileStream.on('error', (err) => {
-            cb(err.message);
-        });
-
-        pronunciationsFileStream.on('finish', () => {
-            pronunciationsFileStream.close(() => {
-                cb(null, `/pronunciations/${fileId}.mp3`);
-            })
-        });
-    });
-
-    workflow.emit('validateParams');
+    const base64Reg = /^data:audio\/mpeg;base64,(.+)$/;
+    let pronunciationData = pronunciationURL.match(base64Reg);
+    if (!pronunciationData) {
+        callback('Pronunciation is not in base64 format');
+    } else {
+        const filePath = `${pronunciationsPath}/${fileId}.mp3`;
+        fs.writeFileSync(filePath, pronunciationData[1], 'base64');
+        callback(null, filePath);
+    }
 }
 
 function pronunciationRemove(options, callback) {

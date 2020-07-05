@@ -21,7 +21,8 @@
     "googleapis": "49.0.0",
     "puppeteer": "3.0.0",
     "sqlite3": "4.1.1",
-    "underscore": "1.10.2"
+    "underscore": "1.10.2",
+    "request": "2.88.2"
   },
   "devDependencies": {
     "eslint": "6.8.0"
