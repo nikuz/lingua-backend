@@ -1,6 +1,7 @@
 //
 /* eslint-disable no-console */
 const fs = require('fs');
+const path = require('path');
 const archiver = require('archiver');
 const { google } = require('googleapis');
 const credentials = require('../Lingua-bdcce9a76860.json');
@@ -38,13 +39,6 @@ zipOutput.on('close', async () => {
     const folder = files.find(item => item.name === 'lingua');
     const alreadySaved = files.find(item => item.name === fileName);
     if (folder) {
-        if (alreadySaved) {
-            console.log('Remove previous backup...');
-            await drive.files.delete({
-                'fileId': alreadySaved.id,
-            });
-        }
-
         console.log('Upload...');
         const newFileRequest = await drive.files.create({
             resource: {
@@ -52,13 +46,20 @@ zipOutput.on('close', async () => {
             },
             media: {
                 mimeType: 'application/zip',
-                body: fs.createReadStream(fileName),
+                body: fs.createReadStream(path.join(__dirname, fileName)),
             },
             fields: 'id',
         });
 
         const newFile = newFileRequest.data;
         console.log('New file Id: ', newFile.id);
+
+        if (alreadySaved) {
+            console.log('Remove previous backup...');
+            await drive.files.delete({
+                'fileId': alreadySaved.id,
+            });
+        }
 
         console.log('Move to lingua folder...');
         await drive.files.update({
