@@ -44,6 +44,7 @@ function get(query, amount) {
                 requestError = response.status();
             }
             await to(browser.close());
+            return;
         }
 
         await Promise.all([
