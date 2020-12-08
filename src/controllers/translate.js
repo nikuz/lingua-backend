@@ -105,52 +105,81 @@ function get(req, res) {
         if (err) {
             cb(err);
         } else {
-            const { isCyrillicWord, translate, raw } = translateData;
+            let { isCyrillicWord, translate, raw } = translateData;
+            let version = translate.version;
 
             if (isCyrillicWord) {
                 cb(null, {
                     word,
                     raw,
+                    version,
                 });
             } else {
-                const translationData = raw[0];
-                const highestRelevantTranslation = translationData[0][1];
+                let correctedWord = word;
                 let pronunciationURL = translate.pronunciationURL;
-                let id;
-                let image;
-                if (word !== highestRelevantTranslation) { // spelling error
-                    const [translateErr, fixedTranslateData] = await to(getTranslation(highestRelevantTranslation));
-                    const [cacheErr, cacheData] = await to(checkCache(highestRelevantTranslation));
-                    if (translateErr || cacheErr) {
-                        return cb(translateErr || cacheErr);
-                    }
-                    pronunciationURL = fixedTranslateData.translate.pronunciationURL;
-                    if (cacheData) {
-                        id = cacheData.id;
-                        image = cacheData.image;
+
+                if (version === 1 && raw[0][0][1]) {
+                    correctedWord = raw[0][0][1];
+                } else if (version === 2) {
+                    const correctionData = raw[0][1];
+                    if (correctionData) {
+                        correctedWord = correctionData[0][0][1];
                     }
                 }
 
-                request.get(pronunciationURL, (error, response, body) => {
-                    if (error || response.statusCode !== 200) {
-                        return cb(error || new Error('Can\'t download pronunciation'));
+                if (word !== correctedWord) { // spelling error
+                    const [cacheErr, cacheData] = await to(checkCache(correctedWord));
+                    if (cacheErr) {
+                        return cb(cacheErr);
                     }
-                    if (response.statusCode === 200) {
-                        const type = response.headers['content-type'];
-                        const pronunciationBase64 = (
-                            `data:${type};base64,${Buffer.from(body).toString('base64')}`
+                    if (cacheData) {
+                        return cb(
+                            null,
+                            {
+                                ...cacheData,
+                                remote: true,
+                                corrected: true,
+                            }
                         );
-
-                        cb(null, {
-                            id,
-                            word,
-                            raw,
-                            pronunciation: pronunciationBase64,
-                            image,
-                            remote: true,
-                        });
                     }
-                });
+
+                    const [translateErr, fixedTranslateData] = await to(getTranslation(correctedWord));
+                    if (translateErr) {
+                        return cb(translateErr);
+                    }
+                    raw = fixedTranslateData.raw;
+                    pronunciationURL = fixedTranslateData.translate.pronunciationURL;
+                    version = fixedTranslateData.translate.version;
+                }
+
+                const result = {
+                    word,
+                    raw,
+                    pronunciation: pronunciationURL,
+                    remote: true,
+                    version,
+                };
+
+                if (pronunciationURL.indexOf('http') !== -1) {
+                    request.get(pronunciationURL, (error, response, body) => {
+                        if (error || response.statusCode !== 200) {
+                            return cb(error || new Error('Can\'t download pronunciation'));
+                        }
+                        if (response.statusCode === 200) {
+                            const type = response.headers['content-type'];
+                            const pronunciationBase64 = (
+                                `data:${type};base64,${Buffer.from(body).toString('base64')}`
+                            );
+
+                            cb(null, {
+                                ...result,
+                                pronunciation: pronunciationBase64,
+                            });
+                        }
+                    });
+                } else {
+                    cb(null, result);
+                }
             }
         }
     });
@@ -214,6 +243,7 @@ function save(req, res) {
         raw,
         pronunciationURL,
         image,
+        version,
     } = body;
 
     workflow.on('validateParams', () => {
@@ -223,6 +253,7 @@ function save(req, res) {
             translation: ['string', translation],
             raw: ['string', raw],
             pronunciationURL: ['string', pronunciationURL],
+            version: ['string', version],
         }, (err) => {
             if (err) {
                 cb(err);
@@ -239,6 +270,7 @@ function save(req, res) {
             raw,
             pronunciationURL,
             image,
+            version,
         }, (err, response) => {
             if (err) {
                 cb('Can\'t save translation');

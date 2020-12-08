@@ -247,6 +247,7 @@ function save(options, callback) {
         translation,
         raw,
         image,
+        version,
     } = options;
     let translationData;
     let pronunciationURL = options.pronunciationURL;
@@ -259,6 +260,7 @@ function save(options, callback) {
             translation: ['string', translation],
             raw: ['string', raw],
             pronunciationURL: ['string', pronunciationURL],
+            version: ['string', version],
         }, (err) => {
             if (err) {
                 cb(err);
@@ -283,13 +285,14 @@ function save(options, callback) {
     workflow.on('fillDatabase', () => {
         db.run(
             `
-                INSERT INTO dictionary (word, translation, raw, updated_at)
-                VALUES($word, $translation, $raw, datetime('now'));
+                INSERT INTO dictionary (word, translation, raw, updated_at, version)
+                VALUES($word, $translation, $raw, datetime('now'), $version);
             `,
             {
                 $word: word.toLowerCase(),
                 $translation: translation.toLowerCase(),
                 $raw: raw,
+                $version: version,
             },
             (error) => {
                 if (error) {

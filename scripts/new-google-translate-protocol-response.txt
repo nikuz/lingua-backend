@@ -1,0 +1,12 @@
+)]}'
+
+1592
+[["wrb.fr","MkEWBc","[[\"ˌpandəˈmōnēəm\",[[[null,\"\\u003cb\\u003e\\u003ci\\u003epandemonium\\u003c/i\\u003e\\u003c/b\\u003e\"]\n,\"pandemoneum\",1,[1]\n]\n]\n,null,[null,11]\n]\n,[[[null,\"stolpotvoreniye\",null,null,null,[[\"столпотворение\",[\"столпотворение\"]\n]\n]\n]\n]\n,\"ru\",1,\"en\"]\n,null,[\"pandemonium\",[[[\"имя существительное\",[[\"wild and noisy disorder or confusion; uproar.\",\"pandemonium broke out\",true,[\"bedlam\",\"chaos\",\"mayhem\",\"uproar\",\"madness\",\"havoc\",\"turmoil\",\"tumult\",\"commotion\",\"confusion\",\"disorder\",\"anarchy\",\"furor\",\"frenzy\",\"clamor\",\"din\",\"hubbub\",\"hue and cry\",\"babel\",\"rumpus\",\"fracas\",\"hurly-burly\",\"maelstrom\",\"bangarang\",\"hullabaloo\",\"all hell breaking loose\",\"madhouse\"]\n]\n]\n]\n]\n,1]\n,[[[null,\"\\u003cb\\u003epandemonium\\u003c/b\\u003e broke out\"]\n]\n,null,1]\n,null,null,[[[\"имя существительное\",[[\"столпотворение\",null,[\"pandemonium\",\"welter\"]\n,1,true]\n,[\"смятение\",null,[\"confusion\",\"disarray\",\"turmoil\",\"tumult\",\"commotion\",\"pandemonium\"]\n,1,true]\n,[\"свистопляска\",null,[\"pandemonium\"]\n,1,true]\n,[\"ад\",null,[\"hell\",\"inferno\",\"Hades\",\"pandemonium\",\"Gehenna\",\"Abaddon\"]\n,2,true]\n,[\"пандемониум\",null,[\"pandemonium\"]\n,2,true]\n,[\"ад кромешный\",null,[\"pandemonium\"]\n,2,true]\n,[\"обиталище демонов\",null,[\"pandemonium\"]\n,2,true]\n,[\"скандал\",null,[\"scandal\",\"scene\",\"fracas\",\"stink\",\"roughhouse\",\"pandemonium\"]\n,2,true]\n]\n,\"ru\",\"en\"]\n]\n,8]\n,null,null,\"en\",1]\n]\n",null,null,null,"generic"]
+]
+58
+[["di",42]
+,["af.httprm",40,"-5641716325469486728",11]
+]
+27
+[["e",4,null,null,1842]
+]
