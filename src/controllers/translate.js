@@ -118,11 +118,11 @@ function get(req, res) {
                 let correctedWord = word;
                 let pronunciationURL = translate.pronunciationURL;
 
-                if (version === 1 && raw[0][0][1]) {
+                if (version === 1 && raw[0] && raw[0][0] && raw[0][0][1]) {
                     correctedWord = raw[0][0][1];
                 } else if (version === 2) {
                     const correctionData = raw[0][1];
-                    if (correctionData) {
+                    if (correctionData && correctionData[0] && correctionData[0][0] && correctionData[0][0][1]) {
                         correctedWord = correctionData[0][0][1];
                     }
                 }
