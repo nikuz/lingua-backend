@@ -14,7 +14,7 @@ const parseTranslation = (raw) => {
 
     for (let i = 0, l = lines.length; i < l; i++) {
         if (lines[i].indexOf(translationMarker) !== -1) {
-            result += lines[i] + ']';
+            result += lines[i];
             break;
         }
     }
@@ -39,7 +39,7 @@ const parsePronunciation = (raw) => {
 
     for (let i = 0, l = lines.length; i < l; i++) {
         if (lines[i].indexOf(pronunciationMarker) !== -1) {
-            result += lines[i] + ']';
+            result += lines[i];
             break;
         }
     }
